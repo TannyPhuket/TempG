@@ -13,7 +13,7 @@
       color: #fff;
     }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: auto;
       padding: 20px;
       display: flex;
@@ -36,7 +36,7 @@
     }
     h2 {
       font-size: 1.2rem;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
     }
     .big-value {
       font-size: 3rem;
@@ -54,6 +54,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
     }
     .slider {
       width: 100%;
@@ -63,6 +64,23 @@
     }
     .red {
       color: #f00;
+    }
+    .embed-container {
+      margin-top: 10px;
+      width: 100%;
+      min-height: 300px;
+    }
+    .embed-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    select {
+      background-color: #000;
+      color: #fff;
+      border: 1px solid #fff;
+      padding: 5px;
+      font-size: 1rem;
     }
     @media (max-width: 600px) {
       .big-value {
@@ -76,8 +94,8 @@
   <div class="container">
 
     <div class="card">
-      <h2>🌡️ อุณหภูมิปัจจุบัน</h2>
-      <p>ค่าที่อ่านได้แบบเรียลไทม์จากเซ็นเซอร์ DHT</p>
+      <h2>🌡️ อุณหภูมิ / 💧 ความชื้น</h2>
+      <p>ค่าจากเซ็นเซอร์ DHT22</p>
       <div class="big-value" id="temp">-- °C</div>
       <div class="big-value" id="hum">-- %</div>
     </div>
@@ -88,11 +106,25 @@
     </div>
 
     <div class="card">
-      <h2>🔧 การตั้งค่า</h2>
-      <p>ตั้งค่าเกณฑ์อุณหภูมิสำหรับการแจ้งเตือน</p>
+      <h2>🔧 ตั้งค่าเกณฑ์แจ้งเตือน</h2>
       <div class="slider-container">
-        <input type="range" id="thresholdSlider" class="slider" min="-5" max="40" value="27" />
-        <span id="thresholdValue">27°C</span>
+        <input type="range" id="thresholdSlider" class="slider" min="20" max="50" value="30" />
+        <span id="thresholdValue">30°C</span>
+      </div>
+    </div>
+
+    <div class="card" style="flex: 1 1 100%;">
+      <h2>📊 กราฟย้อนหลัง</h2>
+      <div class="slider-container">
+        <label>เลือกช่วงเวลา: </label>
+        <select id="rangeSelect">
+          <option value="1">1 วัน</option>
+          <option value="7" selected>1 สัปดาห์</option>
+          <option value="30">30 วัน</option>
+        </select>
+      </div>
+      <div class="embed-container">
+        <iframe id="historyChart"></iframe>
       </div>
     </div>
 
@@ -103,6 +135,7 @@
   <script>
     const channelID = 3025045;
     const readAPIKey = "LMLG3ZWG6FG8F3E4";
+
     const alertSound = document.getElementById("alertSound");
     const tempElem = document.getElementById("temp");
     const humElem = document.getElementById("hum");
@@ -110,26 +143,38 @@
     const statusText = document.getElementById("statusText");
     const thresholdSlider = document.getElementById("thresholdSlider");
     const thresholdValue = document.getElementById("thresholdValue");
+    const historySelect = document.getElementById("rangeSelect");
+    const historyFrame = document.getElementById("historyChart");
 
     let threshold = parseFloat(thresholdSlider.value);
     let alertInterval = null;
+    let isAlerting = false;
+
+    function playAlertLoop() {
+      if (isAlerting) return;
+      isAlerting = true;
+      alertInterval = setInterval(() => {
+        alertSound.play();
+      }, 500);
+    }
+
+    function stopAlert() {
+      clearInterval(alertInterval);
+      isAlerting = false;
+    }
 
     thresholdSlider.addEventListener("input", () => {
       threshold = parseFloat(thresholdSlider.value);
       thresholdValue.textContent = `${threshold}°C`;
     });
 
-    function startContinuousAlert() {
-      if (alertInterval) return;
-      alertInterval = setInterval(() => {
-        alertSound.play();
-      }, 500);
+    function updateHistoryChart() {
+      const days = historySelect.value;
+      const timescale = days > 1 ? "daily" : "60";
+      historyFrame.src = `https://thingspeak.com/channels/${channelID}/charts/1?api_key=${readAPIKey}&days=${days}&timescale=${timescale}&dynamic=true&type=line&bgcolor=%23000&color=%23ff0000&width=auto`;
     }
 
-    function stopContinuousAlert() {
-      clearInterval(alertInterval);
-      alertInterval = null;
-    }
+    historySelect.addEventListener("change", updateHistoryChart);
 
     function fetchData() {
       fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1&api_key=${readAPIKey}`)
@@ -143,35 +188,33 @@
             tempElem.textContent = `${temp.toFixed(1)}°C`;
             humElem.textContent = `${hum.toFixed(1)}%`;
 
-            if (temp > threshold) {
-              tempElem.className = "big-value red";
-              humElem.className = "big-value green";
-              statusCard.className = "card status-alert";
-              statusText.innerHTML = `🚨 ตรวจพบอุณหภูมิสูง (${temp.toFixed(1)}°C) เกินเกณฑ์ ${threshold}°C`;
-              startContinuousAlert();
-            } else {
-              tempElem.className = "big-value green";
-              humElem.className = "big-value green";
-              statusCard.className = "card status-ok";
-              statusText.innerHTML = `✅ อุณหภูมิปกติอยู่ในเกณฑ์ (${temp.toFixed(1)}°C)`;
-              stopContinuousAlert();
-            }
+            tempElem.className = "big-value " + (temp > threshold ? "red" : "green");
+            humElem.className = "big-value green";
 
+            if (temp > threshold) {
+              statusCard.className = "card status-alert";
+              statusText.innerHTML = `🚨 อุณหภูมิสูง (${temp.toFixed(1)}°C) เกิน ${threshold}°C`;
+              playAlertLoop();
+            } else {
+              statusCard.className = "card status-ok";
+              statusText.innerHTML = `✅ อุณหภูมิปกติ (${temp.toFixed(1)}°C) ต่ำกว่า ${threshold}°C`;
+              stopAlert();
+            }
           } else {
             tempElem.textContent = "-- °C";
             humElem.textContent = "-- %";
             statusText.innerText = "⚠️ ข้อมูลไม่พร้อมใช้งาน";
-            stopContinuousAlert();
+            stopAlert();
           }
-
         })
         .catch((err) => {
           statusText.innerText = "❌ ดึงข้อมูลไม่สำเร็จ";
           console.error(err);
-          stopContinuousAlert();
+          stopAlert();
         });
     }
 
+    updateHistoryChart();
     fetchData();
     setInterval(fetchData, 5000);
   </script>
