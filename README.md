@@ -112,20 +112,24 @@
     const thresholdValue = document.getElementById("thresholdValue");
 
     let threshold = parseFloat(thresholdSlider.value);
-    let lastAlertTime = 0;
-
-    function playAlertTwice() {
-      const now = Date.now();
-      if (now - lastAlertTime < 1000) return;
-      alertSound.play();
-      setTimeout(() => alertSound.play(), 500);
-      lastAlertTime = now;
-    }
+    let alertInterval = null;
 
     thresholdSlider.addEventListener("input", () => {
       threshold = parseFloat(thresholdSlider.value);
       thresholdValue.textContent = `${threshold}°C`;
     });
+
+    function startContinuousAlert() {
+      if (alertInterval) return;
+      alertInterval = setInterval(() => {
+        alertSound.play();
+      }, 500);
+    }
+
+    function stopContinuousAlert() {
+      clearInterval(alertInterval);
+      alertInterval = null;
+    }
 
     function fetchData() {
       fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1&api_key=${readAPIKey}`)
@@ -135,30 +139,36 @@
           const temp = parseFloat(feed.field1);
           const hum = parseFloat(feed.field2);
 
-          if (!isNaN(temp)) {
+          if (!isNaN(temp) && !isNaN(hum)) {
             tempElem.textContent = `${temp.toFixed(1)}°C`;
             humElem.textContent = `${hum.toFixed(1)}%`;
 
             if (temp > threshold) {
               tempElem.className = "big-value red";
+              humElem.className = "big-value green";
               statusCard.className = "card status-alert";
               statusText.innerHTML = `🚨 ตรวจพบอุณหภูมิสูง (${temp.toFixed(1)}°C) เกินเกณฑ์ ${threshold}°C`;
-              playAlertTwice();
+              startContinuousAlert();
             } else {
               tempElem.className = "big-value green";
+              humElem.className = "big-value green";
               statusCard.className = "card status-ok";
               statusText.innerHTML = `✅ อุณหภูมิปกติอยู่ในเกณฑ์ (${temp.toFixed(1)}°C)`;
+              stopContinuousAlert();
             }
 
           } else {
             tempElem.textContent = "-- °C";
+            humElem.textContent = "-- %";
             statusText.innerText = "⚠️ ข้อมูลไม่พร้อมใช้งาน";
+            stopContinuousAlert();
           }
 
         })
         .catch((err) => {
           statusText.innerText = "❌ ดึงข้อมูลไม่สำเร็จ";
           console.error(err);
+          stopContinuousAlert();
         });
     }
 
