@@ -91,8 +91,8 @@
       <h2>🔧 การตั้งค่า</h2>
       <p>ตั้งค่าเกณฑ์อุณหภูมิสำหรับการแจ้งเตือน</p>
       <div class="slider-container">
-        <input type="range" id="thresholdSlider" class="slider" min="20" max="50" value="30" />
-        <span id="thresholdValue">30°C</span>
+        <input type="range" id="thresholdSlider" class="slider" min="-5" max="40" value="27" />
+        <span id="thresholdValue">27°C</span>
       </div>
     </div>
 
