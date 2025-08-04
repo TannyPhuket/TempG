@@ -116,9 +116,9 @@
 
     function playAlertTwice() {
       const now = Date.now();
-      if (now - lastAlertTime < 5000) return;
+      if (now - lastAlertTime < 1000) return;
       alertSound.play();
-      setTimeout(() => alertSound.play(), 2000);
+      setTimeout(() => alertSound.play(), 500);
       lastAlertTime = now;
     }
 
