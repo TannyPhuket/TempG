@@ -1,32 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>ESP32 Temp Monitor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>แดชบอร์ดแจ้งเตือน IoT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
       margin: 0;
-      padding: 0;
-      font-family: sans-serif;
-      background: #000;
+      font-family: 'Kanit', sans-serif;
+      background-color: #000;
       color: #fff;
     }
     .container {
-      max-width: 600px;
+      max-width: 900px;
       margin: auto;
       padding: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
     }
     .card {
-      background: #111;
-      border-radius: 8px;
+      background-color: #111827;
       padding: 20px;
-      margin-bottom: 20px;
-      border: 1px solid #fff;
+      border-radius: 15px;
+      flex: 1 1 280px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+      border: 2px solid #ffffff22;
     }
-    .value {
-      font-size: 2em;
-      margin: 10px 0;
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 30px;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+    }
+    .big-value {
+      font-size: 3rem;
+      font-weight: bold;
+    }
+    .status-ok {
+      background: #1e3a1e;
+      border: 2px solid #0f0;
+    }
+    .status-alert {
+      background: #3a1e1e;
+      border: 2px solid #f00;
+    }
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .slider {
+      width: 100%;
     }
     .green {
       color: #0f0;
@@ -34,92 +64,106 @@
     .red {
       color: #f00;
     }
-    .embed-container {
-      position: relative;
-      width: 100%;
-      padding-bottom: 50%;
-      height: 0;
-      overflow: hidden;
-      border: 1px solid #fff;
-    }
-    .embed-container iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
+    @media (max-width: 600px) {
+      .big-value {
+        font-size: 2.5rem;
+      }
     }
   </style>
 </head>
 <body>
+  <h1>📶 แดชบอร์ดแจ้งเตือน IoT</h1>
   <div class="container">
+
     <div class="card">
-      <h2>🌡️ ESP32 Temp & Humidity</h2>
-      <div class="value">Temp: <span id="temp">--</span> °C</div>
-      <div class="value">Humidity: <span id="hum">--</span> %</div>
-      <p id="status">Waiting for data...</p>
-      <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+      <h2>🌡️ อุณหภูมิปัจจุบัน</h2>
+      <p>ค่าที่อ่านได้แบบเรียลไทม์จากเซ็นเซอร์ DHT</p>
+      <div class="big-value" id="temp">-- °C</div>
+      <div class="big-value" id="hum">-- %</div>
     </div>
+
+    <div class="card" id="statusCard">
+      <h2>⚠️ สถานะระบบ</h2>
+      <p id="statusText">กำลังโหลดข้อมูล...</p>
+    </div>
+
     <div class="card">
-      <h3>📈 Temperature Graph</h3>
-      <div class="embed-container">
-        <iframe id="chartTemp"
-          src="https://thingspeak.com/channels/3025045/charts/1?api_key=LMLG3ZWG6FG8F3E4&results=60&dynamic=true&type=line&bgcolor=%23000&color=%23ff0000&linecolor=%23ff0000"
-          allowfullscreen>
-        </iframe>
+      <h2>🔧 การตั้งค่า</h2>
+      <p>ตั้งค่าเกณฑ์อุณหภูมิสำหรับการแจ้งเตือน</p>
+      <div class="slider-container">
+        <input type="range" id="thresholdSlider" class="slider" min="20" max="50" value="30" />
+        <span id="thresholdValue">30°C</span>
       </div>
     </div>
+
   </div>
+
+  <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
   <script>
     const channelID = 3025045;
-    const readAPIKey = 'LMLG3ZWG6FG8F3E4';
-    const alertSound = document.getElementById('alertSound');
+    const readAPIKey = "LMLG3ZWG6FG8F3E4";
+    const alertSound = document.getElementById("alertSound");
+    const tempElem = document.getElementById("temp");
+    const humElem = document.getElementById("hum");
+    const statusCard = document.getElementById("statusCard");
+    const statusText = document.getElementById("statusText");
+    const thresholdSlider = document.getElementById("thresholdSlider");
+    const thresholdValue = document.getElementById("thresholdValue");
+
+    let threshold = parseFloat(thresholdSlider.value);
+    let lastAlertTime = 0;
 
     function playAlertTwice() {
+      const now = Date.now();
+      if (now - lastAlertTime < 5000) return;
       alertSound.play();
-      setTimeout(() => alertSound.play(), 2000); // เว้น 2 วิ
+      setTimeout(() => alertSound.play(), 2000);
+      lastAlertTime = now;
     }
 
-    function fetchLatest() {
+    thresholdSlider.addEventListener("input", () => {
+      threshold = parseFloat(thresholdSlider.value);
+      thresholdValue.textContent = `${threshold}°C`;
+    });
+
+    function fetchData() {
       fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1&api_key=${readAPIKey}`)
-        .then(r => r.json())
-        .then(data => {
-          const f = data.feeds[0];
-          const temp = parseFloat(f.field1);
-          const hum = parseFloat(f.field2);
-          const tempElem = document.getElementById('temp');
-          const humElem = document.getElementById('hum');
-          const statusElem = document.getElementById('status');
+        .then((res) => res.json())
+        .then((data) => {
+          const feed = data.feeds[0];
+          const temp = parseFloat(feed.field1);
+          const hum = parseFloat(feed.field2);
 
           if (!isNaN(temp)) {
-            tempElem.textContent = temp.toFixed(1);
-            humElem.textContent = hum.toFixed(1);
-            if (temp > 30) {
-              tempElem.className = 'red';
-              statusElem.textContent = '🚨 High Temperature!';
-              statusElem.className = 'red';
+            tempElem.textContent = `${temp.toFixed(1)}°C`;
+            humElem.textContent = `${hum.toFixed(1)}%`;
+
+            if (temp > threshold) {
+              tempElem.className = "big-value red";
+              statusCard.className = "card status-alert";
+              statusText.innerHTML = `🚨 ตรวจพบอุณหภูมิสูง (${temp.toFixed(1)}°C) เกินเกณฑ์ ${threshold}°C`;
               playAlertTwice();
             } else {
-              tempElem.className = 'green';
-              statusElem.textContent = '✅ Temperature Normal';
-              statusElem.className = 'green';
+              tempElem.className = "big-value green";
+              statusCard.className = "card status-ok";
+              statusText.innerHTML = `✅ อุณหภูมิปกติอยู่ในเกณฑ์ (${temp.toFixed(1)}°C)`;
             }
+
           } else {
-            tempElem.textContent = '--';
-            statusElem.textContent = '⚠️ Data not available';
-            statusElem.className = '';
+            tempElem.textContent = "-- °C";
+            statusText.innerText = "⚠️ ข้อมูลไม่พร้อมใช้งาน";
           }
+
         })
-        .catch(err => {
+        .catch((err) => {
+          statusText.innerText = "❌ ดึงข้อมูลไม่สำเร็จ";
           console.error(err);
-          document.getElementById('status').textContent = '⚠️ Cannot fetch data';
         });
     }
 
-    fetchLatest();
-    setInterval(fetchLatest, 5000);
+    fetchData();
+    setInterval(fetchData, 5000);
   </script>
 </body>
 </html>
