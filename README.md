@@ -90,7 +90,7 @@
   </style>
 </head>
 <body>
-  <h1>📶 แดชบอร์ดแจ้งเตือน IoT</h1>
+  <h1>📶 IoTTempRealTime </h1>
   <div class="container">
 
     <div class="card">
