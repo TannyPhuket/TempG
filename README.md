@@ -1,222 +1,145 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>แดชบอร์ดแจ้งเตือน IoT</title>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Kanit', sans-serif;
-      background-color: #000;
-      color: #fff;
-    }
-    .container {
-      max-width: 1000px;
-      margin: auto;
-      padding: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-    }
-    .card {
-      background-color: #111827;
-      padding: 20px;
-      border-radius: 15px;
-      flex: 1 1 280px;
-      box-shadow: 0 0 10px rgba(255,255,255,0.1);
-      border: 2px solid #ffffff22;
-    }
-    h1 {
-      text-align: center;
-      font-size: 2rem;
-      margin-bottom: 30px;
-    }
-    h2 {
-      font-size: 1.2rem;
-      margin-bottom: 10px;
-    }
-    .big-value {
-      font-size: 3rem;
-      font-weight: bold;
-    }
-    .status-ok {
-      background: #1e3a1e;
-      border: 2px solid #0f0;
-    }
-    .status-alert {
-      background: #3a1e1e;
-      border: 2px solid #f00;
-    }
-    .slider-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .slider {
-      width: 100%;
-    }
-    .green {
-      color: #0f0;
-    }
-    .red {
-      color: #f00;
-    }
-    .embed-container {
-      margin-top: 10px;
-      width: 100%;
-      min-height: 300px;
-    }
-    .embed-container iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-    select {
-      background-color: #000;
-      color: #fff;
-      border: 1px solid #fff;
-      padding: 5px;
-      font-size: 1rem;
-    }
-    @media (max-width: 600px) {
-      .big-value {
-        font-size: 2.5rem;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตรวจวัดอุณหภูมิแบบเรียลไทม์</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #e8f4ff;
+            font-family: 'Prompt', sans-serif;
+        }
+        .card {
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .temp-value, .humid-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .status-normal {
+            color: green;
+        }
+        .status-alert {
+            color: red;
+        }
+        .user-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .user-card:hover {
+            transform: scale(1.05);
+        }
+        .status-circle {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-ok {
+            background-color: green;
+        }
+        .status-bad {
+            background-color: red;
+        }
+    </style>
 </head>
-<body>
-  <h1>📶 IoTTempRealTime </h1>
-  <div class="container">
+<body class="p-3">
+    <div class="container">
+        <h2 class="text-center mb-4">🌡 ระบบตรวจวัดอุณหภูมิแบบเรียลไทม์</h2>
+        
+        <div class="row mb-4 text-center">
+            <div class="col-md-6 mb-3">
+                <div class="card p-4">
+                    <div class="temp-value" id="temperature">-- °C</div>
+                    <div>อุณหภูมิปัจจุบัน</div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card p-4">
+                    <div class="humid-value" id="humidity">-- %</div>
+                    <div>ความชื้นสัมพัทธ์</div>
+                </div>
+            </div>
+        </div>
 
-    <div class="card">
-      <h2>🌡️ อุณหภูมิ / 💧 ความชื้น</h2>
-      <p>ค่าจากเซ็นเซอร์ DHT22</p>
-      <div class="big-value" id="temp">-- °C</div>
-      <div class="big-value" id="hum">-- %</div>
+        <div class="card p-3 mb-4 text-center" id="status-card">
+            <strong id="status-text">กำลังโหลดข้อมูล...</strong>
+        </div>
+
+        <div class="row text-center mb-4">
+            <div class="col-md-4">
+                <div class="card p-3 user-card" onclick="showHistory('ผู้ซื้อ')">
+                    🛒 <h5>ผู้ซื้อ</h5>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 user-card" onclick="showHistory('ผู้ขาย')">
+                    🏬 <h5>ผู้ขาย</h5>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 user-card" onclick="showHistory('ผู้ขนส่ง')">
+                    🚚 <h5>ผู้ขนส่ง</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-3">
+            <h4>ประวัติอุณหภูมิย้อนหลัง (สูงสุด 1 เดือน)</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>วันที่</th>
+                        <th>รายการสินค้า</th>
+                        <th>เวลา</th>
+                        <th>อุณหภูมิ (°C)</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table">
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <div class="card" id="statusCard">
-      <h2>⚠️ สถานะระบบ</h2>
-      <p id="statusText">กำลังโหลดข้อมูล...</p>
-    </div>
+    <audio id="siren" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto"></audio>
 
-    <div class="card">
-      <h2>🔧 ตั้งค่าเกณฑ์แจ้งเตือน</h2>
-      <div class="slider-container">
-        <input type="range" id="thresholdSlider" class="slider" min="20" max="50" value="30" />
-        <span id="thresholdValue">30°C</span>
-      </div>
-    </div>
+    <script>
+        const channelID = "3025045"; // ใส่ ThingSpeak Channel ID
+        const readAPIKey = "LMLG3ZWG6FG8F3E4"; // ใส่ Read API Key ถ้าตั้ง private
 
-    <div class="card" style="flex: 1 1 100%;">
-      <h2>📊 กราฟย้อนหลัง</h2>
-      <div class="slider-container">
-        <label>เลือกช่วงเวลา: </label>
-        <select id="rangeSelect">
-          <option value="1">1 วัน</option>
-          <option value="7" selected>1 สัปดาห์</option>
-          <option value="30">30 วัน</option>
-        </select>
-      </div>
-      <div class="embed-container">
-        <iframe id="historyChart"></iframe>
-      </div>
-    </div>
+        function fetchData() {
+            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=10&api_key=${readAPIKey}`;
+            $.getJSON(url, function(data) {
+                if (data.feeds.length > 0) {
+                    const latest = data.feeds[data.feeds.length - 1];
+                    const temp = parseFloat(latest.field1);
+                    const humid = parseFloat(latest.field2);
 
-  </div>
+                    $("#temperature").text(temp.toFixed(1) + " °C");
+                    $("#humidity").text(humid.toFixed(1) + " %");
 
-  <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+                    if (temp > 0) {
+                        $("#status-text").text("อุณหภูมิสูงเกินค่าที่กำหนด!").addClass("status-alert").removeClass("status-normal");
+                        document.getElementById("siren").play();
+                    } else {
+                        $("#status-text").text("อุณหภูมิปกติ").addClass("status-normal").removeClass("status-alert");
+                    }
+                }
+            });
+        }
 
-  <script>
-    const channelID = 3025045;
-    const readAPIKey = "LMLG3ZWG6FG8F3E4";
+        function showHistory(userType) {
+            alert("กำลังแสดงข้อมูลของ: " + userType);
+            // ในเวอร์ชันสมบูรณ์จะดึงข้อมูลย้อนหลัง 1 เดือน และแสดงในตาราง
+        }
 
-    const alertSound = document.getElementById("alertSound");
-    const tempElem = document.getElementById("temp");
-    const humElem = document.getElementById("hum");
-    const statusCard = document.getElementById("statusCard");
-    const statusText = document.getElementById("statusText");
-    const thresholdSlider = document.getElementById("thresholdSlider");
-    const thresholdValue = document.getElementById("thresholdValue");
-    const historySelect = document.getElementById("rangeSelect");
-    const historyFrame = document.getElementById("historyChart");
-
-    let threshold = parseFloat(thresholdSlider.value);
-    let alertInterval = null;
-    let isAlerting = false;
-
-    function playAlertLoop() {
-      if (isAlerting) return;
-      isAlerting = true;
-      alertInterval = setInterval(() => {
-        alertSound.play();
-      }, 500);
-    }
-
-    function stopAlert() {
-      clearInterval(alertInterval);
-      isAlerting = false;
-    }
-
-    thresholdSlider.addEventListener("input", () => {
-      threshold = parseFloat(thresholdSlider.value);
-      thresholdValue.textContent = `${threshold}°C`;
-    });
-
-    function updateHistoryChart() {
-      const days = historySelect.value;
-      const timescale = days > 1 ? "daily" : "60";
-      historyFrame.src = `https://thingspeak.com/channels/${channelID}/charts/1?api_key=${readAPIKey}&days=${days}&timescale=${timescale}&dynamic=true&type=line&bgcolor=%23000&color=%23ff0000&width=auto`;
-    }
-
-    historySelect.addEventListener("change", updateHistoryChart);
-
-    function fetchData() {
-      fetch(`https://api.thingspeak.com/channels/${channelID}/feeds.json?results=1&api_key=${readAPIKey}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const feed = data.feeds[0];
-          const temp = parseFloat(feed.field1);
-          const hum = parseFloat(feed.field2);
-
-          if (!isNaN(temp) && !isNaN(hum)) {
-            tempElem.textContent = `${temp.toFixed(1)}°C`;
-            humElem.textContent = `${hum.toFixed(1)}%`;
-
-            tempElem.className = "big-value " + (temp > threshold ? "red" : "green");
-            humElem.className = "big-value green";
-
-            if (temp > threshold) {
-              statusCard.className = "card status-alert";
-              statusText.innerHTML = `🚨 อุณหภูมิสูง (${temp.toFixed(1)}°C) เกิน ${threshold}°C`;
-              playAlertLoop();
-            } else {
-              statusCard.className = "card status-ok";
-              statusText.innerHTML = `✅ อุณหภูมิปกติ (${temp.toFixed(1)}°C) ต่ำกว่า ${threshold}°C`;
-              stopAlert();
-            }
-          } else {
-            tempElem.textContent = "-- °C";
-            humElem.textContent = "-- %";
-            statusText.innerText = "⚠️ ข้อมูลไม่พร้อมใช้งาน";
-            stopAlert();
-          }
-        })
-        .catch((err) => {
-          statusText.innerText = "❌ ดึงข้อมูลไม่สำเร็จ";
-          console.error(err);
-          stopAlert();
-        });
-    }
-
-    updateHistoryChart();
-    fetchData();
-    setInterval(fetchData, 5000);
-  </script>
+        setInterval(fetchData, 5000);
+        fetchData();
+    </script>
 </body>
 </html>
