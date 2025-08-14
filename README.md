@@ -178,10 +178,12 @@
 
     async function fetchLatest(){
       const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=1`;
-      const res = await fetch(url); const data = await res.json();
+      const res = await fetch(url); 
+      const data = await res.json();
       if(!data.feeds?.length) return;
       const f = data.feeds[0];
-      const t = parseFloat(f.field1), h = parseFloat(f.field2);
+      const t = parseFloat(f.field1);
+      const h = parseFloat(f.field2);
 
       const tClass = tempStatusClass(t);
       elTemp.textContent = `${isFinite(t)?t.toFixed(1):'--'} °C`;
@@ -189,21 +191,43 @@
       elHum.textContent = `${isFinite(h)?h.toFixed(1):'--'} %`;
       elHum.className = `reading ${(isFinite(h) && h>=0 && h<=100)?'ok':'bad'}`;
 
-      if(tClass==='bad'){ elStatus.textContent = 'อุณหภูมิไม่ปกติ!'; elStatus.className='status-pill bad'; startSiren();}
-      else{ elStatus.textContent = 'อุณหภูมิปกติ'; elStatus.className='status-pill ok'; stopSiren();}
+      if(tClass==='bad'){ 
+        elStatus.textContent = 'อุณหภูมิไม่ปกติ!'; 
+        elStatus.className='status-pill bad'; 
+        startSiren();
+      } else { 
+        elStatus.textContent = 'อุณหภูมิปกติ'; 
+        elStatus.className='status-pill ok'; 
+        stopSiren();
+      }
     }
 
     async function fetchHistoryOneMonth(){
       if(currentRole === 'ผู้ขนส่ง') return;
       const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=8000`;
-      const res = await fetch(url); const data = await res.json();
+      const res = await fetch(url); 
+      const data = await res.json();
       const now = Date.now(), monthMs = 31*24*60*60*1000;
 
       historyData = (data.feeds||[])
-        .map(f=>({created:new Date(f.created_at).getTime(), t:parseFloat(f.field1)}))
-        .filter(x=> now-x.created <= monthMs && isFinite(x.t))
-        .sort((a,b)=>b.created-a.created)
-        .map(x=>{const {date,time}=formatTH(x.created);return{date,product:'สินค้า เนื้อดิบTanny',time,temp:x.t,dot:statusDot(x.t)}});
+        .map(f => ({
+          created: new Date(f.created_at).getTime(),
+          t: parseFloat(f.field1),
+          product: f.field3 || 'ไม่ระบุสินค้า'
+        }))
+        .filter(x => now - x.created <= monthMs && isFinite(x.t))
+        .sort((a,b) => b.created - a.created)
+        .map(x => {
+          const {date,time} = formatTH(x.created);
+          return {
+            date,
+            product: x.product,
+            time,
+            temp: x.t,
+            dot: statusDot(x.t)
+          };
+        });
+
       renderTable();
     }
 
