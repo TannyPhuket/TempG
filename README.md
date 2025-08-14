@@ -124,17 +124,17 @@
 
   <script>
     // ====== CONFIG ======
-    const CHANNEL_ID = "3025045";                             // ThingSpeak Channel ID
-    const READ_API_KEY = "LMLG3ZWG6FG8F3E4";                  // Read API Key (ถ้า private)
-    const ROWS_PER_PAGE = 10;                                   // แถวต่อหน้า
-    const REFRESH_MS = 5000;                                    // รีเฟรชข้อมูลล่าสุดทุก 5 วิ
-    const SIREN_INTERVAL_MS = 1000;                             // เล่นเสียงทุก 1 วิ เมื่อ temp > 0
-    const MIN_TEMP = -10, MAX_TEMP = 50;                        // ช่วงอ้างอิง
+    const CHANNEL_ID = "3025045";
+    const READ_API_KEY = "LMLG3ZWG6FG8F3E4";
+    const ROWS_PER_PAGE = 10;
+    const REFRESH_MS = 5000;
+    const SIREN_INTERVAL_MS = 1000;
+    const MIN_TEMP = -10, MAX_TEMP = 50;
 
     // ====== STATE ======
-    let historyData = []; // เรียงใหม่ -> เก่า
+    let historyData = [];
     let currentPage = 1;
-    let currentRole = null; // ผู้ซื้อ/ผู้ขาย/ผู้ขนส่ง (ตอนนี้ใช้เพื่อแสดงหัวเรื่อง)
+    let currentRole = null;
     let sirenTimer = null;
     let soundEnabled = false;
 
@@ -147,32 +147,25 @@
     const siren = document.getElementById('siren');
 
     function playSiren(){
-      if(!soundEnabled) return; // ต้องให้ผู้ใช้กดเปิดเสียงก่อน (นโยบายเบราว์เซอร์)
-      try{ siren.currentTime = 0; siren.play(); }catch(e){ /* ignore */ }
+      if(!soundEnabled) return;
+      try{ siren.currentTime = 0; siren.play(); }catch(e){ }
     }
-
     function startSiren(){
       if(sirenTimer) return;
       sirenTimer = setInterval(playSiren, SIREN_INTERVAL_MS);
     }
-
     function stopSiren(){
       if(sirenTimer){ clearInterval(sirenTimer); sirenTimer = null; }
     }
-
     function tempStatusClass(t){
-      // ปกติ = ภายในช่วง -10..50 และ t <= 0
       const ok = (t >= MIN_TEMP && t <= MAX_TEMP && t <= 0);
       return ok ? 'ok' : 'bad';
     }
-
     function statusDot(t){
       const cls = tempStatusClass(t) === 'ok' ? 'ok' : 'bad';
       return `<span class="status-dot ${cls}" title="${cls==='ok'?'ปกติ':'ไม่ปกติ'}"></span>`;
     }
-
     function formatTH(dt){
-      // แปลงเป็นเวลาไทย (UTC+7) โดยอาศัย toLocaleString
       const d = new Date(dt);
       return {
         date: d.toLocaleDateString('th-TH'),
@@ -190,7 +183,6 @@
       const t = parseFloat(f.field1);
       const h = parseFloat(f.field2);
 
-      // แสดงค่าปัจจุบัน + สีสถานะ
       const tClass = tempStatusClass(t);
       elTemp.textContent = `${isFinite(t)?t.toFixed(1):'--'} °C`;
       elTemp.classList.remove('ok','bad'); elTemp.classList.add(tClass);
@@ -211,7 +203,6 @@
     }
 
     async function fetchHistoryOneMonth(){
-      // ขอข้อมูลเยอะหน่อยแล้วกรองภายใน 1 เดือนล่าสุดฝั่ง client
       const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=8000`;
       const res = await fetch(url);
       const data = await res.json();
@@ -225,7 +216,7 @@
           t: parseFloat(f.field1)
         }))
         .filter(x=> now - x.created <= monthMs && isFinite(x.t))
-        .sort((a,b)=> b.created - a.created); // ใหม่ -> เก่า
+        .sort((a,b)=> b.created - a.created);
 
       historyData = items.map(x=>{
         const {date,time} = formatTH(x.created);
@@ -257,43 +248,51 @@
         </tr>
       `).join('');
 
-      function renderPager(){
-  const total = Math.max(1, Math.ceil(historyData.length / ROWS_PER_PAGE));
-  let html = '';
-  const maxVisible = 10; // แสดงเลขหน้าไม่เกิน 10
+      renderPager();
+    }
 
-  const disabledPrev = (currentPage === 1) ? 'disabled' : '';
-  const disabledNext = (currentPage === total) ? 'disabled' : '';
+    function renderPager(){
+      const total = Math.max(1, Math.ceil(historyData.length / ROWS_PER_PAGE));
+      let html = '';
+      const maxVisible = 10;
 
-  // คำนวณช่วงของหน้าที่จะแสดง
-  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-  let end = start + maxVisible - 1;
-  if (end > total) {
-    end = total;
-    start = Math.max(1, end - maxVisible + 1);
-  }
+      const disabledPrev = (currentPage === 1) ? 'disabled' : '';
+      const disabledNext = (currentPage === total) ? 'disabled' : '';
 
-  html += `<li class="page-item ${disabledPrev}">
-             <button class="page-link" onclick="goPage(${currentPage - 1})">ก่อนหน้า</button>
-           </li>`;
+      let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let end = start + maxVisible - 1;
+      if (end > total) {
+        end = total;
+        start = Math.max(1, end - maxVisible + 1);
+      }
 
-  for (let i = start; i <= end; i++) {
-    html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
-               <button class="page-link" onclick="goPage(${i})">${i}</button>
-             </li>`;
-  }
+      html += `<li class="page-item ${disabledPrev}">
+                 <button class="page-link" onclick="goPage(${currentPage - 1})">ก่อนหน้า</button>
+               </li>`;
 
-  html += `<li class="page-item ${disabledNext}">
-             <button class="page-link" onclick="goPage(${currentPage + 1})">ถัดไป</button>
-           </li>`;
+      for (let i = start; i <= end; i++) {
+        html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                   <button class="page-link" onclick="goPage(${i})">${i}</button>
+                 </li>`;
+      }
 
-  elPager.innerHTML = html;
-}
- 
+      html += `<li class="page-item ${disabledNext}">
+                 <button class="page-link" onclick="goPage(${currentPage + 1})">ถัดไป</button>
+               </li>`;
+
+      elPager.innerHTML = html;
+    }
+
+    function goPage(page){
+      const total = Math.ceil(historyData.length / ROWS_PER_PAGE);
+      if(page < 1 || page > total) return;
+      currentPage = page;
+      renderTable();
+    }
+
     // ====== UI actions ======
     window.showHistory = function(role){
-      currentRole = role; // ไว้ต่อยอดในอนาคต (เช่น ฟิลเตอร์สินค้าตามบทบาท)
-      // แค่โฟกัสลงตารางและเน้นหัวข้อ
+      currentRole = role;
       const card = document.querySelector('.card.p-3.mb-2');
       card.classList.add('ring');
       setTimeout(()=>card.classList.remove('ring'), 600);
@@ -303,16 +302,16 @@
     document.getElementById('enableSoundBtn').addEventListener('click', ()=>{
       soundEnabled = true; 
       playSiren();
-      document.getElementById('enableSoundBtn').classList.remove('btn-outline-primary');
-      document.getElementById('enableSoundBtn').classList.add('btn-primary');
-      document.getElementById('enableSoundBtn').textContent = 'เปิดเสียงแล้ว';
+      const btn = document.getElementById('enableSoundBtn');
+      btn.classList.remove('btn-outline-primary');
+      btn.classList.add('btn-primary');
+      btn.textContent = 'เปิดเสียงแล้ว';
     });
 
     // ====== BOOT ======
     fetchLatest();
     fetchHistoryOneMonth();
     setInterval(fetchLatest, REFRESH_MS);
-    // ประหยัดเครือข่าย: โหลดประวัติใหม่ทุก 60 วินาที
     setInterval(fetchHistoryOneMonth, 60000);
   </script>
 </body>
