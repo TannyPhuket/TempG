@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
@@ -258,32 +257,39 @@
         </tr>
       `).join('');
 
-      renderPager();
-    }
+      function renderPager(){
+  const total = Math.max(1, Math.ceil(historyData.length / ROWS_PER_PAGE));
+  let html = '';
+  const maxVisible = 10; // แสดงเลขหน้าไม่เกิน 10
 
-    function renderPager(){
-      const total = Math.max(1, Math.ceil(historyData.length / ROWS_PER_PAGE));
-      let html = '';
-      const disabledPrev = (currentPage===1) ? 'disabled' : '';
-      const disabledNext = (currentPage===total) ? 'disabled' : '';
+  const disabledPrev = (currentPage === 1) ? 'disabled' : '';
+  const disabledNext = (currentPage === total) ? 'disabled' : '';
 
-      html += `<li class="page-item ${disabledPrev}"><button class="page-link" onclick="goPage(${currentPage-1})">ก่อนหน้า</button></li>`;
-      for(let i=1;i<=total;i++){
-        html += `<li class="page-item ${i===currentPage?'active':''}"><button class="page-link" onclick="goPage(${i})">${i}</button></li>`;
-      }
-      html += `<li class="page-item ${disabledNext}"><button class="page-link" onclick="goPage(${currentPage+1})">ถัดไป</button></li>`;
+  // คำนวณช่วงของหน้าที่จะแสดง
+  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let end = start + maxVisible - 1;
+  if (end > total) {
+    end = total;
+    start = Math.max(1, end - maxVisible + 1);
+  }
 
-      elPager.innerHTML = html;
-    }
+  html += `<li class="page-item ${disabledPrev}">
+             <button class="page-link" onclick="goPage(${currentPage - 1})">ก่อนหน้า</button>
+           </li>`;
 
-    window.goPage = function(n){
-      const total = Math.max(1, Math.ceil(historyData.length / ROWS_PER_PAGE));
-      if(n<1||n>total) return; 
-      currentPage = n; 
-      renderTable();
-      window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
-    }
+  for (let i = start; i <= end; i++) {
+    html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+               <button class="page-link" onclick="goPage(${i})">${i}</button>
+             </li>`;
+  }
 
+  html += `<li class="page-item ${disabledNext}">
+             <button class="page-link" onclick="goPage(${currentPage + 1})">ถัดไป</button>
+           </li>`;
+
+  elPager.innerHTML = html;
+}
+ 
     // ====== UI actions ======
     window.showHistory = function(role){
       currentRole = role; // ไว้ต่อยอดในอนาคต (เช่น ฟิลเตอร์สินค้าตามบทบาท)
