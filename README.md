@@ -109,11 +109,12 @@
     <audio id="siren" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto"></audio>
 
     <script>
-        const channelID = "3025045"; // ใส่ ThingSpeak Channel ID
-        const readAPIKey = "LMLG3ZWG6FG8F3E4"; // ใส่ Read API Key ถ้าตั้ง private
+        const channelID = "3025045"; 
+        const readAPIKey = "LMLG3ZWG6FG8F3E4";
+        let sirenInterval = null;
 
         function fetchData() {
-            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?results=10&api_key=${readAPIKey}`;
+            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=100`;
             $.getJSON(url, function(data) {
                 if (data.feeds.length > 0) {
                     const latest = data.feeds[data.feeds.length - 1];
@@ -123,19 +124,45 @@
                     $("#temperature").text(temp.toFixed(1) + " °C");
                     $("#humidity").text(humid.toFixed(1) + " %");
 
+                    // ตรวจสอบสถานะ
                     if (temp > 0) {
                         $("#status-text").text("อุณหภูมิสูงเกินค่าที่กำหนด!").addClass("status-alert").removeClass("status-normal");
-                        document.getElementById("siren").play();
+                        if (!sirenInterval) {
+                            sirenInterval = setInterval(() => {
+                                document.getElementById("siren").play();
+                            }, 1000); // เล่นทุก 1 วินาที
+                        }
                     } else {
                         $("#status-text").text("อุณหภูมิปกติ").addClass("status-normal").removeClass("status-alert");
+                        clearInterval(sirenInterval);
+                        sirenInterval = null;
                     }
+
+                    // สร้างตารางย้อนหลัง
+                    let tableHTML = "";
+                    data.feeds.forEach(feed => {
+                        const t = parseFloat(feed.field1);
+                        const dateTime = new Date(feed.created_at);
+                        const date = dateTime.toLocaleDateString("th-TH");
+                        const time = dateTime.toLocaleTimeString("th-TH");
+                        const status = (t >= -10 && t <= 50 && t <= 0) ? 
+                            `<span class="status-circle status-ok"></span>` : 
+                            `<span class="status-circle status-bad"></span>`;
+                        tableHTML += `<tr>
+                            <td>${date}</td>
+                            <td>สินค้า A</td>
+                            <td>${time}</td>
+                            <td>${t.toFixed(1)}</td>
+                            <td>${status}</td>
+                        </tr>`;
+                    });
+                    $("#history-table").html(tableHTML);
                 }
             });
         }
 
         function showHistory(userType) {
             alert("กำลังแสดงข้อมูลของ: " + userType);
-            // ในเวอร์ชันสมบูรณ์จะดึงข้อมูลย้อนหลัง 1 เดือน และแสดงในตาราง
         }
 
         setInterval(fetchData, 5000);
