@@ -12,6 +12,7 @@
         .status-circle { width: 15px; height: 15px; border-radius: 50%; display: inline-block; }
         .status-ok { background-color: green; }
         .status-bad { background-color: red; }
+        .section-title { margin-top: 40px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -29,7 +30,9 @@
         </div>
         <p id="status-text" class="text-center"></p>
         <audio id="siren" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
-        <h3 class="mt-5">ตรวจสอบคุณภาพสินค้า</h3>
+
+        <!-- ผู้ซื้อ -->
+        <h3 class="section-title">ตรวจสอบคุณภาพสินค้า (ผู้ซื้อ)</h3>
         <table class="table table-bordered">
             <thead class="table-light">
                 <tr>
@@ -40,9 +43,24 @@
                     <th>สถานะ</th>
                 </tr>
             </thead>
-            <tbody id="history-table"></tbody>
+            <tbody id="buyer-table"></tbody>
         </table>
-        <div id="pagination" class="text-center"></div>
+        <div id="buyer-pagination" class="text-center"></div>
+
+        <!-- ผู้ขนส่ง -->
+        <h3 class="section-title">ตรวจสอบคุณภาพสินค้า (ผู้ขนส่ง - ย้อนหลังไม่เกิน 1 อาทิตย์)</h3>
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>วันที่</th>
+                    <th>รายการสินค้า</th>
+                    <th>เวลา</th>
+                    <th>อุณหภูมิ (°C)</th>
+                    <th>สถานะ</th>
+                </tr>
+            </thead>
+            <tbody id="shipper-table"></tbody>
+        </table>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -50,8 +68,8 @@
         const channelID = "3025045"; 
         const readAPIKey = "LMLG3ZWG6FG8F3E4";
         let sirenInterval = null;
-        let historyData = [];
-        let currentPage = 1;
+        let buyerData = [];
+        let buyerCurrentPage = 1;
         const rowsPerPage = 10;
 
         function fetchData() {
@@ -80,7 +98,7 @@
                         sirenInterval = null;
                     }
 
-                    historyData = data.feeds.map(feed => {
+                    buyerData = data.feeds.map(feed => {
                         const t = parseFloat(feed.field1);
                         const dateTime = new Date(feed.created_at);
                         const date = dateTime.toLocaleDateString("th-TH");
@@ -93,19 +111,21 @@
                             product: "เนื้อดิบTanny",
                             time, 
                             temp: t.toFixed(1), 
-                            status
+                            status,
+                            timestamp: dateTime
                         };
                     }).reverse();
 
-                    renderTable();
+                    renderBuyerTable();
+                    renderShipperTable();
                 }
             });
         }
 
-        function renderTable() {
-            const start = (currentPage - 1) * rowsPerPage;
+        function renderBuyerTable() {
+            const start = (buyerCurrentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage;
-            const pageData = historyData.slice(start, end);
+            const pageData = buyerData.slice(start, end);
 
             let tableHTML = "";
             pageData.forEach(row => {
@@ -118,26 +138,46 @@
                 </tr>`;
             });
 
-            $("#history-table").html(tableHTML);
-            renderPagination();
+            $("#buyer-table").html(tableHTML);
+            renderBuyerPagination();
         }
 
-        function renderPagination() {
-            const totalPages = Math.ceil(historyData.length / rowsPerPage);
+        function renderBuyerPagination() {
+            const totalPages = Math.ceil(buyerData.length / rowsPerPage);
             let paginationHTML = "";
 
             if (totalPages > 1) {
                 for (let i = 1; i <= totalPages; i++) {
-                    paginationHTML += `<button class="btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-outline-primary'}" onclick="changePage(${i})">${i}</button> `;
+                    paginationHTML += `<button class="btn btn-sm ${i === buyerCurrentPage ? 'btn-primary' : 'btn-outline-primary'}" onclick="changeBuyerPage(${i})">${i}</button> `;
                 }
             }
 
-            $("#pagination").html(paginationHTML);
+            $("#buyer-pagination").html(paginationHTML);
         }
 
-        function changePage(page) {
-            currentPage = page;
-            renderTable();
+        function changeBuyerPage(page) {
+            buyerCurrentPage = page;
+            renderBuyerTable();
+        }
+
+        function renderShipperTable() {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+            const shipperData = buyerData.filter(row => row.timestamp >= oneWeekAgo);
+
+            let tableHTML = "";
+            shipperData.forEach(row => {
+                tableHTML += `<tr>
+                    <td>${row.date}</td>
+                    <td>${row.product}</td>
+                    <td>${row.time}</td>
+                    <td>${row.temp}</td>
+                    <td>${row.status}</td>
+                </tr>`;
+            });
+
+            $("#shipper-table").html(tableHTML);
         }
 
         fetchData();
