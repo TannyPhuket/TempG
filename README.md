@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="th">
 <head>
   <meta charset="UTF-8">
@@ -175,7 +175,7 @@
   </div>
 
   <footer class="text-gray-500 text-sm mt-8 mb-4">
-    © 2025 Smart Cold Guard — Developed with ❤️ by AI
+    © 2025 Smart Cold Guard — Developed with ❤️ by Teammy
   </footer>
 
 </body>
