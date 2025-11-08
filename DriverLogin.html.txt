@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🚚 Smart Cold Guard - Driver Dashboard</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+      authDomain: "temperature-cold-guard.firebaseapp.com",
+      databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "temperature-cold-guard",
+      storageBucket: "temperature-cold-guard.firebasestorage.app",
+      messagingSenderId: "29693405672",
+      appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
+      measurementId: "G-XDHBRJ9S3W"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const tempEl = document.getElementById("temperature");
+    const humEl = document.getElementById("humidity");
+    const gpsEl = document.getElementById("gps");
+    const timeEl = document.getElementById("timestamp");
+    const mapEl = document.getElementById("map");
+
+    let map, marker;
+
+    // ฟังก์ชันโหลดข้อมูลจาก Firebase
+    window.onload = () => {
+      onValue(ref(db, "data"), (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const temp = data.temperature || 0;
+          const hum = data.humidity || 0;
+          const lat = data.gps?.lat || 0;
+          const lng = data.gps?.lng || 0;
+          const ts = data.timestamp || Date.now();
+
+          tempEl.textContent = temp + " °C";
+          humEl.textContent = hum + " %";
+          gpsEl.textContent = lat.toFixed(5) + ", " + lng.toFixed(5);
+          timeEl.textContent = new Date(ts).toLocaleString("th-TH");
+
+          // อัปเดตแผนที่
+          if (!map) {
+            map = new google.maps.Map(mapEl, {
+              center: { lat, lng },
+              zoom: 13,
+            });
+            marker = new google.maps.Marker({
+              position: { lat, lng },
+              map,
+              title: "ตำแหน่งรถขนส่ง",
+            });
+          } else {
+            marker.setPosition({ lat, lng });
+            map.panTo({ lat, lng });
+          }
+        }
+      });
+    };
+
+    // ปุ่มจำลองการอัปเดตตำแหน่งใหม่
+    window.updateLocation = async () => {
+      const randomLat = 14.0 + Math.random() * 0.3;
+      const randomLng = 100.5 + Math.random() * 0.4;
+      const ts = Date.now();
+
+      await update(ref(db, "data"), {
+        gps: { lat: randomLat, lng: randomLng },
+        timestamp: ts,
+      });
+
+      alert("📡 อัปเดตตำแหน่งใหม่แล้ว!");
+    };
+  </script>
+
+  <!-- Google Maps -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBH-YourGoogleAPIKeyHere&callback=initMap"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="bg-blue-600 text-white text-center py-5 shadow-md">
+    <h1 class="text-3xl font-bold">🚚 Smart Cold Guard - Driver Dashboard</h1>
+    <p class="text-blue-100">ติดตามตำแหน่งและสถานะอุณหภูมิของตู้เย็น</p>
+  </header>
+
+  <!-- Main -->
+  <main class="container mx-auto px-6 py-8 flex flex-col gap-6">
+
+    <!-- Realtime Data -->
+    <div class="grid md:grid-cols-3 gap-6 text-center">
+      <div class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-lg font-semibold text-blue-600">อุณหภูมิปัจจุบัน</h2>
+        <p id="temperature" class="text-3xl font-bold text-gray-800 mt-2">-- °C</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-lg font-semibold text-blue-600">ความชื้นสัมพัทธ์</h2>
+        <p id="humidity" class="text-3xl font-bold text-gray-800 mt-2">-- %</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-lg font-semibold text-blue-600">พิกัด GPS</h2>
+        <p id="gps" class="text-md text-gray-700 mt-2">-- , --</p>
+      </div>
+    </div>
+
+    <!-- Map Section -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+      <h2 class="text-lg font-semibold text-blue-600 mb-3 text-center">🗺️ แผนที่ติดตามตำแหน่ง</h2>
+      <div id="map" class="w-full h-[400px] rounded-xl shadow-inner border"></div>
+    </div>
+
+    <!-- Timestamp -->
+    <div class="text-center bg-white p-4 rounded-xl shadow-lg">
+      <p class="text-gray-600">🕒 ข้อมูลล่าสุดอัปเดตเมื่อ:</p>
+      <p id="timestamp" class="text-lg font-semibold text-gray-800">--</p>
+    </div>
+
+    <!-- Update Button -->
+    <div class="text-center">
+      <button onclick="updateLocation()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-md transition">
+        📡 อัปเดตตำแหน่งจำลอง
+      </button>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-blue-100 text-center py-3 text-sm text-gray-600 mt-8">
+    © 2025 Smart Cold Guard System | Driver Dashboard
+  </footer>
+</body>
+</html>
