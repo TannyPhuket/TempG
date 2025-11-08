@@ -1,1 +1,122 @@
 
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔐 Smart Cold Guard Login</title>
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+
+    // 🔧 Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+      authDomain: "temperature-cold-guard.firebaseapp.com",
+      databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "temperature-cold-guard",
+      storageBucket: "temperature-cold-guard.firebasestorage.app",
+      messagingSenderId: "29693405672",
+      appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
+      measurementId: "G-XDHBRJ9S3W"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // 🎯 Login Function
+    async function loginUser() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const msg = document.getElementById("msg");
+
+      if (!email || !password) {
+        msg.textContent = "⚠️ กรุณากรอกข้อมูลให้ครบถ้วน";
+        msg.classList.remove("hidden");
+        return;
+      }
+
+      try {
+        const userRef = ref(db, "users/" + email.replace(".", "@"));
+        const snapshot = await get(userRef);
+
+        if (!snapshot.exists()) {
+          msg.textContent = "❌ ไม่พบผู้ใช้นี้ในระบบ";
+          msg.classList.remove("hidden");
+          return;
+        }
+
+        const userData = snapshot.val();
+        const userRole = userData.Role;
+
+        // 💡 ตัวอย่าง: อาจเก็บรหัสผ่านใน Firebase ก็ได้ แต่ในนี้ข้ามไว้เพื่อความง่าย
+        msg.classList.add("hidden");
+
+        // 🔄 Redirect ตาม Role
+        if (userRole === "Seller") {
+          window.location.href = "dashboard.html";
+        } else if (userRole === "Buyer") {
+          window.location.href = "buyer.html";
+        } else if (userRole === "Driver") {
+          window.location.href = "driver.html";
+        } else {
+          msg.textContent = "⚠️ Role ของผู้ใช้ไม่ถูกต้อง";
+          msg.classList.remove("hidden");
+        }
+      } catch (error) {
+        console.error(error);
+        msg.textContent = "❌ เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
+        msg.classList.remove("hidden");
+      }
+    }
+
+    // 📲 กด Enter เพื่อเข้าสู่ระบบ
+    document.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") loginUser();
+    });
+
+    window.loginUser = loginUser;
+  </script>
+</head>
+
+<body class="bg-gradient-to-br from-blue-100 via-white to-blue-50 min-h-screen flex items-center justify-center font-sans">
+
+  <div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-md text-center">
+    <h1 class="text-3xl font-bold text-blue-600 mb-6">❄️ Smart Cold Guard</h1>
+    <p class="text-gray-500 mb-8">เข้าสู่ระบบเพื่อจัดการตู้เย็นอัจฉริยะของคุณ</p>
+
+    <input
+      id="email"
+      type="text"
+      placeholder="Email (เช่น Seller@Test.com)"
+      class="w-full px-4 py-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+    />
+
+    <input
+      id="password"
+      type="password"
+      placeholder="Password (ใส่อะไรก็ได้ในเวอร์ชันทดสอบ)"
+      class="w-full px-4 py-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+    />
+
+    <button
+      onclick="loginUser()"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all shadow-md"
+    >
+      🔓 เข้าสู่ระบบ
+    </button>
+
+    <p id="msg" class="hidden mt-4 text-red-500 font-medium"></p>
+
+    <footer class="mt-8 text-sm text-gray-400">
+      © 2025 Smart Cold Guard System<br>
+      Developed with ❤️ by Teammy
+    </footer>
+  </div>
+
+</body>
+</html>
