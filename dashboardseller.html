@@ -1,26 +1,24 @@
-
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>📊 Smart Cold Guard Dashboard (Seller)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
+
   <style>
     #map { height: 300px; border-radius: 1rem; }
   </style>
 </head>
 
 <body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen p-6 font-sans">
-
   <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
     <h1 class="text-3xl font-bold text-blue-700 mb-2">❄️ Smart Cold Guard Dashboard</h1>
     <p class="text-gray-500 mb-6">บัญชีผู้ขาย (Seller)</p>
 
-    <!-- Current Data Section -->
+    <!-- Current Data -->
     <div class="grid md:grid-cols-3 gap-4 mb-6">
       <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
         <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
@@ -39,11 +37,9 @@
     <!-- Map -->
     <div id="map" class="mb-8"></div>
 
-    <!-- Chart Section -->
-    <h2 class="text-2xl font-semibold text-gray-700 mb-4">📈 กราฟอุณหภูมิย้อนหลัง</h2>
+    <!-- Chart -->
+    <h2 class="text-2xl font-semibold text-gray-700 mb-4">📈 กราฟอุณหภูมิย้อนหลัง (1 เดือน)</h2>
     <canvas id="tempChart" class="w-full mb-6"></canvas>
-
-    <!-- Pagination -->
     <div id="pagination" class="flex justify-center space-x-2 mb-10"></div>
 
     <!-- Settings -->
@@ -62,7 +58,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-    import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    import { getDatabase, ref, get, update, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
@@ -83,27 +79,29 @@
     const gpsEl = document.getElementById("gps");
     const saveMsg = document.getElementById("saveMsg");
 
-    // Map setup
+    // === แผนที่ ===
     const map = L.map('map').setView([14.12345, 100.98765], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
     }).addTo(map);
     const marker = L.marker([14.12345, 100.98765]).addTo(map);
 
-    // Real-time updates
+    // === อัปเดตข้อมูลแบบเรียลไทม์ ===
     onValue(ref(db, "Data"), (snapshot) => {
       const data = snapshot.val();
       if (!data) return;
 
-      tempEl.textContent = `${data.Temperature} °C`;
-      humEl.textContent = `${data.Humidity} %`;
-      gpsEl.textContent = `${data.GPS.lat}, ${data.GPS.lng}`;
+      tempEl.textContent = `${data.Temperature ?? "--"} °C`;
+      humEl.textContent = `${data.Humidity ?? "--"} %`;
+      gpsEl.textContent = `${data.GPS?.lat ?? "--"}, ${data.GPS?.lng ?? "--"}`;
 
-      marker.setLatLng([data.GPS.lat, data.GPS.lng]);
-      map.setView([data.GPS.lat, data.GPS.lng]);
+      if (data.GPS) {
+        marker.setLatLng([data.GPS.lat, data.GPS.lng]);
+        map.setView([data.GPS.lat, data.GPS.lng]);
+      }
     });
 
-    // Chart setup
+    // === กราฟย้อนหลัง (1 เดือน) ===
     const ctx = document.getElementById("tempChart").getContext("2d");
     const tempChart = new Chart(ctx, {
       type: "line",
@@ -113,97 +111,65 @@
           label: "อุณหภูมิ (°C)",
           data: [],
           borderWidth: 2,
-          tension: 0.3
+          tension: 0.3,
+          borderColor: "#2563eb"
         }]
       },
       options: {
         responsive: true,
-        scales: {
-          y: { beginAtZero: false }
-        }
+        scales: { y: { beginAtZero: false } }
       }
     });
 
-   import { getDatabase, ref, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    function loadHistory(days = 30) {
+      const now = Date.now();
+      const limitTime = now - days * 24 * 60 * 60 * 1000;
+      const q = query(ref(db, "History"), orderByKey(), limitToLast(1500));
 
-// ดึงข้อมูลย้อนหลัง 7 วัน (ผู้ขับ)
-function loadHistory(days = 7) {
-  const now = Date.now();
-  const limitTime = now - days * 24 * 60 * 60 * 1000; // milliseconds
+      onValue(q, (snapshot) => {
+        const allData = snapshot.val();
+        if (!allData) return;
 
-  const q = query(ref(db, "History"), orderByKey(), limitToLast(1000)); // ดึงสูงสุด 1000 จุด
-  onValue(q, (snapshot) => {
-    const allData = snapshot.val();
-    if (!allData) return;
+        const filtered = Object.entries(allData)
+          .filter(([ts]) => parseInt(ts) >= limitTime)
+          .map(([ts, val]) => ({
+            date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
+            temp: val.Temperature
+          }));
 
-    const filtered = Object.entries(allData)
-      .filter(([ts]) => parseInt(ts) >= limitTime)
-      .map(([ts, val]) => ({
-        date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
-        temp: val.Temperature
-      }));
+        renderPagination(filtered);
+        showPage(filtered, 1);
+      });
+    }
 
-    renderChart(filtered);
-    renderPagination(filtered);
-  });
-}
-
-function renderChart(data) {
-  tempChart.data.labels = data.map(d => d.date);
-  tempChart.data.datasets[0].data = data.map(d => d.temp);
-  tempChart.update();
-}
-
-function renderPagination(data) {
-  // แสดงไม่เกิน 15 จุดต่อหน้า และไม่เกิน 10 หน้า
-  const perPage = 15;
-  const totalPages = Math.min(Math.ceil(data.length / perPage), 10);
-  const container = document.getElementById("pagination");
-  container.innerHTML = "";
-
-  for (let i = 1; i <= totalPages; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = i;
-    btn.className = `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
-    btn.onclick = () => {
-      const start = (i - 1) * perPage;
-      const end = Math.min(start + perPage, data.length);
+    function showPage(data, page) {
+      const perPage = 15;
+      const start = (page - 1) * perPage;
+      const end = start + perPage;
       const sliced = data.slice(start, end);
+
       tempChart.data.labels = sliced.map(d => d.date);
       tempChart.data.datasets[0].data = sliced.map(d => d.temp);
       tempChart.update();
-    };
-    container.appendChild(btn);
-  }
-}
-
-// เรียกใช้งาน
-loadHistory(7);
-));
-
-      const sliced = data.slice(start, end);
-      tempChart.data.labels = sliced.map(d => d.day);
-      tempChart.data.datasets[0].data = sliced.map(d => d.temp);
-      tempChart.update();
-
-      renderPagination(total, perPage, page);
     }
 
-    function renderPagination(total, perPage, current) {
-      const pages = Math.ceil(total / perPage);
+    function renderPagination(data) {
+      const totalPages = Math.min(Math.ceil(data.length / 15), 10);
       const container = document.getElementById("pagination");
       container.innerHTML = "";
 
-      for (let i = 1; i <= pages; i++) {
+      for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement("button");
         btn.textContent = i;
-        btn.className = `px-3 py-1 rounded-lg ${i === current ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
-        btn.onclick = () => generateHistory(i);
+        btn.className = `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
+        btn.onclick = () => showPage(data, i);
         container.appendChild(btn);
       }
     }
 
-    // Save settings
+    loadHistory(30);
+
+    // === บันทึกการตั้งค่าแจ้งเตือน ===
     async function saveSettings() {
       const min = parseFloat(document.getElementById("minTemp").value);
       const max = parseFloat(document.getElementById("maxTemp").value);
@@ -215,7 +181,6 @@ loadHistory(7);
     }
 
     window.saveSettings = saveSettings;
-    generateHistory(1);
   </script>
 </body>
 </html>
