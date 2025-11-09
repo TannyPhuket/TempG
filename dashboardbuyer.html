@@ -54,7 +54,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    import { getDatabase, ref, onValue, query, orderByKey, limitToLast } 
+    from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
@@ -97,7 +98,7 @@
       data: {
         labels: [],
         datasets: [{
-          label: "อุณหภูมิ (°C)",
+          label: "อุณหภูมิย้อนหลัง (°C)",
           data: [],
           borderWidth: 2,
           tension: 0.3,
@@ -106,86 +107,57 @@
       options: { responsive: true, scales: { y: { beginAtZero: false } } }
     });
 
-   import { getDatabase, ref, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    // 🧩 โหลดข้อมูลย้อนหลัง 30 วัน
+    function loadHistory(days = 30) {
+      const now = Date.now();
+      const limitTime = now - days * 24 * 60 * 60 * 1000;
 
-// ดึงข้อมูลย้อนหลัง 7 วัน (ผู้ขับ)
-function loadHistory(days = 7) {
-  const now = Date.now();
-  const limitTime = now - days * 24 * 60 * 60 * 1000; // milliseconds
+      const q = query(ref(db, "History"), orderByKey(), limitToLast(1000));
+      onValue(q, (snapshot) => {
+        const allData = snapshot.val();
+        if (!allData) return;
 
-  const q = query(ref(db, "History"), orderByKey(), limitToLast(1000)); // ดึงสูงสุด 1000 จุด
-  onValue(q, (snapshot) => {
-    const allData = snapshot.val();
-    if (!allData) return;
+        const filtered = Object.entries(allData)
+          .filter(([ts]) => parseInt(ts) >= limitTime)
+          .map(([ts, val]) => ({
+            date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
+            temp: val.Temperature
+          }));
 
-    const filtered = Object.entries(allData)
-      .filter(([ts]) => parseInt(ts) >= limitTime)
-      .map(([ts, val]) => ({
-        date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
-        temp: val.Temperature
-      }));
-
-    renderChart(filtered);
-    renderPagination(filtered);
-  });
-}
-
-function renderChart(data) {
-  tempChart.data.labels = data.map(d => d.date);
-  tempChart.data.datasets[0].data = data.map(d => d.temp);
-  tempChart.update();
-}
-
-function renderPagination(data) {
-  // แสดงไม่เกิน 15 จุดต่อหน้า และไม่เกิน 10 หน้า
-  const perPage = 15;
-  const totalPages = Math.min(Math.ceil(data.length / perPage), 10);
-  const container = document.getElementById("pagination");
-  container.innerHTML = "";
-
-  for (let i = 1; i <= totalPages; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = i;
-    btn.className = `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
-    btn.onclick = () => {
-      const start = (i - 1) * perPage;
-      const end = Math.min(start + perPage, data.length);
-      const sliced = data.slice(start, end);
-      tempChart.data.labels = sliced.map(d => d.date);
-      tempChart.data.datasets[0].data = sliced.map(d => d.temp);
-      tempChart.update();
-    };
-    container.appendChild(btn);
-  }
-}
-
-// เรียกใช้งาน
-loadHistory(7);
-    ));
-
-      const sliced = data.slice(start, end);
-      tempChart.data.labels = sliced.map(d => d.day);
-      tempChart.data.datasets[0].data = sliced.map(d => d.temp);
-      tempChart.update();
-
-      renderPagination(total, perPage, page);
+        renderChart(filtered);
+        renderPagination(filtered);
+      });
     }
 
-    function renderPagination(total, perPage, current) {
-      const pages = Math.min(Math.ceil(total / perPage), 10);
+    function renderChart(data) {
+      tempChart.data.labels = data.map(d => d.date);
+      tempChart.data.datasets[0].data = data.map(d => d.temp);
+      tempChart.update();
+    }
+
+    function renderPagination(data) {
+      const perPage = 15;
+      const totalPages = Math.min(Math.ceil(data.length / perPage), 10);
       const container = document.getElementById("pagination");
       container.innerHTML = "";
 
-      for (let i = 1; i <= pages; i++) {
+      for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement("button");
         btn.textContent = i;
-        btn.className = `px-3 py-1 rounded-lg ${i === current ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
-        btn.onclick = () => generateHistory(i);
+        btn.className = `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
+        btn.onclick = () => {
+          const start = (i - 1) * perPage;
+          const end = Math.min(start + perPage, data.length);
+          const sliced = data.slice(start, end);
+          tempChart.data.labels = sliced.map(d => d.date);
+          tempChart.data.datasets[0].data = sliced.map(d => d.temp);
+          tempChart.update();
+        };
         container.appendChild(btn);
       }
     }
 
-    generateHistory(1);
+    loadHistory(30);
   </script>
 </body>
 </html>
