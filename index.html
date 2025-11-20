@@ -1,63 +1,73 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🔐 Smart Cold Guard Login</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script type="module">
-import { db } from "./js/firebase-config.js";
-import { ref, get } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔐 Smart Cold Guard Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 
-async function loginUser() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const msg = document.getElementById("msg");
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
-  if (!email || !password) {
-    msg.textContent = "⚠️ กรุณากรอกข้อมูลให้ครบถ้วน";
-    msg.classList.remove("hidden");
-    return;
-  }
+    async function loginUser() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const msg = document.getElementById("msg");
 
-  try {
-    const key = email.replace(/\./g, "@");
-    const userRef = ref(db, "users/" + key);
-    const snap = await get(userRef);
+      if (!email || !password) {
+        msg.textContent = "⚠️ กรุณากรอกข้อมูลให้ครบถ้วน";
+        msg.classList.remove("hidden");
+        return;
+      }
 
-    if (!snap.exists()) {
-      msg.textContent = "❌ ไม่พบผู้ใช้นี้";
-      msg.classList.remove("hidden");
-      return;
+      try {
+        // แก้ไขให้ตรงกับ key ใน Firebase
+        const key = email.replace(/[@.]/g, "_");
+        const userRef = ref(db, "users/" + key);
+        const snap = await get(userRef);
+
+        if (!snap.exists()) {
+          msg.textContent = "❌ ไม่พบผู้ใช้นี้";
+          msg.classList.remove("hidden");
+          return;
+        }
+
+        const user = snap.val();
+        if (user.password !== password) {
+          msg.textContent = "❌ รหัสผ่านไม่ถูกต้อง";
+          msg.classList.remove("hidden");
+          return;
+        }
+
+        const role = user.Role;
+        if (role === "Buyer") {
+          window.location.href = "dashboard_buyer.html";
+        } else if (role === "Seller") {
+          window.location.href = "dashboard_seller.html";
+        } else if (role === "Driver") {
+          window.location.href = "dashboard_driver.html";
+        } else {
+          msg.textContent = "❌ Role ไม่ถูกต้อง";
+          msg.classList.remove("hidden");
+        }
+      } catch (err) {
+        msg.textContent = "⚠️ ไม่สามารถเชื่อมต่อ Firebase";
+        console.error(err);
+      }
     }
 
-    const role = snap.val().Role;
-    if (role === "Buyer") {
-      window.location.href = "dashboard_buyer.html";
-    } else if (role === "Seller") {
-      window.location.href = "dashboard_seller.html";
-    } else if (role === "Driver") {
-      window.location.href = "dashboard_driver.html";
-    } else {
-      msg.textContent = "❌ Role ไม่ถูกต้อง";
-      msg.classList.remove("hidden");
-    }
-  } catch (err) {
-    msg.textContent = "⚠️ ไม่สามารถเชื่อมต่อ Firebase";
-    console.error(err);
-  }
-}
-
-window.loginUser = loginUser;
-</script>
+    window.loginUser = loginUser;
+  </script>
 </head>
+
 <body class="bg-gradient-to-br from-blue-100 via-white to-blue-50 min-h-screen flex items-center justify-center font-sans">
-<div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-md text-center">
-  <h1 class="text-3xl font-bold text-blue-600 mb-6">❄️ Smart Cold Guard</h1>
-  <input id="email" placeholder="Email" class="w-full px-4 py-3 mb-3 border rounded-lg"/>
-  <input id="password" type="password" placeholder="Password" class="w-full px-4 py-3 mb-4 border rounded-lg"/>
-  <button onclick="loginUser()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold">เข้าสู่ระบบ</button>
-  <p id="msg" class="hidden mt-4 text-red-500 font-medium"></p>
-</div>
+  <div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-md text-center">
+    <h1 class="text-3xl font-bold text-blue-600 mb-6">❄️ Smart Cold Guard</h1>
+    <input id="email" placeholder="Email" class="w-full px-4 py-3 mb-3 border rounded-lg"/>
+    <input id="password" type="password" placeholder="Password" class="w-full px-4 py-3 mb-4 border rounded-lg"/>
+    <button onclick="loginUser()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold">เข้าสู่ระบบ</button>
+    <p id="msg" class="hidden mt-4 text-red-500 font-medium"></p>
+  </div>
 </body>
 </html>
