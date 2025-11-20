@@ -1,129 +1,149 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Cold Guard – Seller Dashboard</title>
+  <title>📊 Seller Dashboard | Smart Cold Guard</title>
+
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { db } from "./js/firebase-config.js";
-    import { ref, onValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    function $(id) {
-      return document.getElementById(id);
-    }
-
-    // โหลดข้อมูลจาก Firebase แบบ Real-time
-    function loadData() {
-      const dataRef = ref(db, "data");
-      const settingsRef = ref(db, "settings");
-
-      // 🔥 ข้อมูลเซ็นเซอร์ -------------------
-      onValue(dataRef, (snap) => {
-        if (snap.exists()) {
-          const v = snap.val();
-
-          $("temp").textContent = v.temperature + " °C";
-          $("humidity").textContent = v.humidity + " %";
-
-          // GPS
-          if (v.gps) {
-            $("lat").textContent = v.gps.lat;
-            $("lng").textContent = v.gps.lng;
-
-            // แสดงบนแผนที่
-            updateMap(v.gps.lat, v.gps.lng);
-          }
-
-          checkStatus(v.temperature);
-        }
-      });
-
-      // 🔥 ข้อมูลตั้งค่า -----------------------
-      onValue(settingsRef, (snap) => {
-        if (snap.exists()) {
-          const s = snap.val();
-          $("minTemp").textContent = s.minTemp + " °C";
-          $("maxTemp").textContent = s.maxTemp + " °C";
-        }
-      });
-    }
-
-    // ตรวจสอบสถานะอุณหภูมิ
-    function checkStatus(temp) {
-      const min = parseFloat($("minTemp").textContent);
-      const max = parseFloat($("maxTemp").textContent);
-
-      const stat = $("status");
-
-      if (temp < min) {
-        stat.textContent = "❄ ต่ำกว่ามาตรฐาน";
-        stat.className = "text-blue-600 font-bold";
-      } else if (temp > max) {
-        stat.textContent = "🔥 สูงกว่ามาตรฐาน";
-        stat.className = "text-red-600 font-bold";
-      } else {
-        stat.textContent = "✔ อยู่ในช่วงที่เหมาะสม";
-        stat.className = "text-green-600 font-bold";
-      }
-    }
-
-    // แผนที่ --------------------
-    let map;
-    function updateMap(lat, lng) {
-      if (!map) {
-        map = L.map("map").setView([lat, lng], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-          .addTo(map);
-      }
-      L.marker([lat, lng]).addTo(map);
-    }
-
-    window.onload = loadData;
-  </script>
-
-  <!-- Leaflet map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <style>
+    #map { height: 300px; border-radius: 1rem; }
+  </style>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gradient-to-br from-blue-100 via-white to-blue-50 min-h-screen font-sans">
 
-  <h1 class="text-3xl font-bold text-blue-600 mb-6">📦 Seller Dashboard</h1>
+  <!-- Container -->
+  <div class="max-w-6xl mx-auto p-6">
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Header -->
+    <nav class="bg-blue-600 text-white p-4 flex justify-between items-center rounded-2xl mb-6">
+      <h1 class="text-xl font-semibold">❄️ Smart Cold Guard – Seller</h1>
+      <button onclick="window.location.href='index.html'" class="bg-blue-800 hover:bg-blue-900 px-4 py-2 rounded-lg">ออกจากระบบ</button>
+    </nav>
 
-    <!-- อุณหภูมิ -->
-    <div class="p-6 bg-white shadow rounded-xl">
-      <h2 class="text-xl font-bold mb-2">🌡 อุณหภูมิ</h2>
-      <p id="temp" class="text-4xl font-bold text-blue-500">-- °C</p>
-      <p id="status" class="mt-2 text-gray-600"></p>
+    <!-- Realtime Data -->
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+        <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
+        <p id="temperature" class="text-3xl font-bold text-blue-700 mt-2">-- °C</p>
+      </div>
+      <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+        <h2 class="text-lg font-semibold text-gray-600">ความชื้น</h2>
+        <p id="humidity" class="text-3xl font-bold text-blue-700 mt-2">-- %</p>
+      </div>
+      <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+        <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
+        <p id="gps" class="text-lg font-medium text-blue-700 mt-2">--</p>
+      </div>
     </div>
 
-    <!-- ความชื้น -->
-    <div class="p-6 bg-white shadow rounded-xl">
-      <h2 class="text-xl font-bold mb-2">💧 ความชื้น</h2>
-      <p id="humidity" class="text-4xl font-bold text-cyan-500">-- %</p>
-    </div>
+    <!-- Map -->
+    <div id="map" class="mb-6"></div>
 
-    <!-- ตั้งค่าขอบเขต -->
-    <div class="p-6 bg-white shadow rounded-xl">
-      <h2 class="text-xl font-bold mb-2">⚙️ การตั้งค่า</h2>
-      <p>อุณหภูมิต่ำสุด: <span id="minTemp">--</span></p>
-      <p>อุณหภูมิสูงสุด: <span id="maxTemp">--</span></p>
+    <!-- Chart -->
+    <h2 class="text-2xl font-semibold text-gray-700 mb-4">📈 กราฟอุณหภูมิย้อนหลัง (30 วัน)</h2>
+    <canvas id="tempChart" class="w-full mb-6"></canvas>
+
+    <!-- Settings -->
+    <div class="bg-gray-50 rounded-2xl p-6 shadow">
+      <h3 class="text-xl font-semibold mb-4 text-blue-700">⚙️ การตั้งค่าแจ้งเตือน</h3>
+      <div class="flex flex-col md:flex-row gap-4 items-center">
+        <input id="minTemp" type="number" placeholder="อุณหภูมิต่ำสุด (°C)" class="p-3 rounded-lg border border-gray-300 w-full md:w-1/3" />
+        <input id="maxTemp" type="number" placeholder="อุณหภูมิสูงสุด (°C)" class="p-3 rounded-lg border border-gray-300 w-full md:w-1/3" />
+        <button onclick="saveSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-md">
+          💾 บันทึก
+        </button>
+      </div>
+      <p id="saveMsg" class="text-green-600 mt-3 hidden">✅ บันทึกสำเร็จ!</p>
     </div>
 
   </div>
 
-  <!-- GPS -->
-  <div class="mt-6 p-6 bg-white shadow rounded-xl">
-    <h2 class="text-xl font-bold mb-4">📍 ตำแหน่ง GPS</h2>
-    <p>Lat: <span id="lat">--</span></p>
-    <p>Lng: <span id="lng">--</span></p>
-    <div id="map" class="w-full h-72 mt-4 rounded-xl"></div>
-  </div>
+  <!-- Script Module -->
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { ref, onValue, update, query, orderByKey, limitToLast } 
+      from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
+    // DOM Elements
+    const tempEl = document.getElementById("temperature");
+    const humEl = document.getElementById("humidity");
+    const gpsEl = document.getElementById("gps");
+    const minTempEl = document.getElementById("minTemp");
+    const maxTempEl = document.getElementById("maxTemp");
+    const saveMsg = document.getElementById("saveMsg");
+
+    // Leaflet Map
+    const map = L.map('map').setView([14.12345, 100.98765], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    const marker = L.marker([14.12345, 100.98765]).addTo(map);
+
+    // --- Real-time Data ---
+    const tempRef = ref(db, "data/temperature");
+    const humRef = ref(db, "data/humidity");
+    const gpsRef = ref(db, "data/gps");
+    const settingsRef = ref(db, "settings");
+
+    onValue(tempRef, snap => tempEl.textContent = snap.val()?.toFixed(2) + "°C");
+    onValue(humRef, snap => humEl.textContent = snap.val()?.toFixed(2) + "%");
+    onValue(gpsRef, snap => {
+      const lat = snap.val()?.lat || 14.12345;
+      const lng = snap.val()?.lng || 100.98765;
+      gpsEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      marker.setLatLng([lat, lng]);
+      map.setView([lat, lng]);
+    });
+
+    onValue(settingsRef, snap => {
+      const data = snap.val() || {};
+      minTempEl.value = data.minTemp ?? '';
+      maxTempEl.value = data.maxTemp ?? '';
+    });
+
+    window.saveSettings = async function() {
+      const minT = parseFloat(minTempEl.value);
+      const maxT = parseFloat(maxTempEl.value);
+      if (isNaN(minT) || isNaN(maxT)) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+      await update(settingsRef, { minTemp: minT, maxTemp: maxT });
+      saveMsg.classList.remove("hidden");
+      setTimeout(() => saveMsg.classList.add("hidden"), 2000);
+    };
+
+    // --- Chart.js ---
+    const ctx = document.getElementById("tempChart").getContext("2d");
+    const tempChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: "อุณหภูมิ (°C)", data: [], borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.1)", fill: true }] },
+      options: { responsive: true, scales: { y: { beginAtZero: false } } }
+    });
+
+    // Load 30-day History
+    function loadHistory(days = 30) {
+      const now = Date.now();
+      const limitTime = now - days*24*60*60*1000;
+      const q = query(ref(db, "History"), orderByKey(), limitToLast(1000));
+      onValue(q, snap => {
+        const data = snap.val();
+        if (!data) return;
+        const filtered = Object.entries(data)
+          .filter(([ts]) => parseInt(ts) >= limitTime)
+          .map(([ts, val]) => ({ date: new Date(parseInt(ts)).toLocaleDateString("th-TH"), temp: val.Temperature }));
+        tempChart.data.labels = filtered.map(d => d.date);
+        tempChart.data.datasets[0].data = filtered.map(d => d.temp);
+        tempChart.update();
+      });
+    }
+
+    loadHistory();
+  </script>
 </body>
 </html>
