@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
@@ -75,23 +75,25 @@
     const humEl = document.getElementById("humidity");
     const gpsEl = document.getElementById("gps");
 
-    // 🌍 แผนที่
-    const map = L.map('map').setView([14.12345, 100.98765], 10);
+    // 🌍 แผนที่เริ่มต้น
+    const map = L.map('map').setView([13.736717, 100.523186], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    const marker = L.marker([14.12345, 100.98765]).addTo(map);
+    const marker = L.marker([13.736717, 100.523186]).addTo(map);
 
-    // 📡 ดึงข้อมูลเรียลไทม์
-    onValue(ref(db, "Data"), (snapshot) => {
-      const data = snapshot.val();
-      if (!data) return;
-      tempEl.textContent = `${data.Temperature} °C`;
-      humEl.textContent = `${data.Humidity} %`;
-      gpsEl.textContent = `${data.GPS.lat}, ${data.GPS.lng}`;
-      marker.setLatLng([data.GPS.lat, data.GPS.lng]);
-      map.setView([data.GPS.lat, data.GPS.lng]);
+    // 📡 ดึงข้อมูลตอนนี้ (Realtime)
+    onValue(ref(db, "data"), (snapshot) => {
+      const d = snapshot.val();
+      if (!d) return;
+
+      tempEl.textContent = `${d.temperature} °C`;
+      humEl.textContent = `${d.humidity} %`;
+      gpsEl.textContent = `${d.gps.lat}, ${d.gps.lng}`;
+
+      marker.setLatLng([d.gps.lat, d.gps.lng]);
+      map.setView([d.gps.lat, d.gps.lng]);
     });
 
-    // 📊 กราฟย้อนหลัง
+    // 📈 กราฟย้อนหลัง
     const ctx = document.getElementById("tempChart").getContext("2d");
     const tempChart = new Chart(ctx, {
       type: "line",
@@ -104,24 +106,28 @@
           tension: 0.3,
         }]
       },
-      options: { responsive: true, scales: { y: { beginAtZero: false } } }
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: false } }
+      }
     });
 
-    // 🧩 โหลดข้อมูลย้อนหลัง 30 วัน
+    // 🧩 โหลด History ถ้ามี
     function loadHistory(days = 30) {
       const now = Date.now();
       const limitTime = now - days * 24 * 60 * 60 * 1000;
 
-      const q = query(ref(db, "History"), orderByKey(), limitToLast(1000));
-      onValue(q, (snapshot) => {
-        const allData = snapshot.val();
-        if (!allData) return;
+      const q = query(ref(db, "History"), orderByKey(), limitToLast(2000));
 
-        const filtered = Object.entries(allData)
+      onValue(q, (snapshot) => {
+        const all = snapshot.val();
+        if (!all) return;
+
+        const filtered = Object.entries(all)
           .filter(([ts]) => parseInt(ts) >= limitTime)
           .map(([ts, val]) => ({
             date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
-            temp: val.Temperature
+            temp: val.temperature || val.Temperature
           }));
 
         renderChart(filtered);
@@ -137,27 +143,17 @@
 
     function renderPagination(data) {
       const perPage = 15;
-      const totalPages = Math.min(Math.ceil(data.length / perPage), 10);
+      const totalPages = Math.ceil(data.length / perPage);
       const container = document.getElementById("pagination");
       container.innerHTML = "";
 
       for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement("button");
         btn.textContent = i;
-        btn.className = `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
+        btn.className =
+          `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
+
         btn.onclick = () => {
           const start = (i - 1) * perPage;
-          const end = Math.min(start + perPage, data.length);
-          const sliced = data.slice(start, end);
-          tempChart.data.labels = sliced.map(d => d.date);
-          tempChart.data.datasets[0].data = sliced.map(d => d.temp);
-          tempChart.update();
-        };
-        container.appendChild(btn);
-      }
-    }
-
-    loadHistory(30);
-  </script>
-</body>
-</html>
+          const chunk = data.slice(start, start + perPage);
+          tempChart.data.labels = chunk.m
