@@ -3,21 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🚚 Smart Cold Guard - Driver Dashboard</title>
+  <title>🚚 Driver Dashboard | Smart Cold Guard</title>
 
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     #map { height: 280px; border-radius: 1rem; }
   </style>
 </head>
-<body class="bg-gradient-to-br from-sky-50 to-blue-100 min-h-screen p-6 font-sans">
+<body class="bg-gradient-to-br from-sky-50 to-blue-100 min-h-screen font-sans">
 
-  <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
-    <div class="flex justify-between items-center mb-4">
+  <div class="max-w-5xl mx-auto p-6 bg-white rounded-3xl shadow-2xl">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold text-blue-700">🚚 Smart Cold Guard</h1>
       <p class="text-gray-500">บัญชีผู้ขับ (Driver)</p>
     </div>
@@ -39,120 +46,70 @@
     </div>
 
     <!-- Map -->
-    <div id="map" class="mb-8"></div>
+    <div id="map" class="mb-6"></div>
 
-    <!-- Chart Section -->
+    <!-- Chart -->
     <h2 class="text-2xl font-semibold text-gray-700 mb-4">📉 กราฟอุณหภูมิย้อนหลัง (7 วัน)</h2>
     <canvas id="tempChart" class="w-full mb-6"></canvas>
 
-    <!-- Pagination -->
-    <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
-
-    <footer class="text-gray-400 text-sm text-center mt-10">
-      © 2025 Smart Cold Guard | Driver Dashboard
-    </footer>
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-    import { getDatabase, ref, onValue, query, orderByKey, limitToLast } 
-    from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    import { db } from "./js/firebase-config.js";
+    import { ref, onValue, query, orderByKey, limitToLast } 
+      from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-      authDomain: "temperature-cold-guard.firebaseapp.com",
-      databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "temperature-cold-guard",
-      storageBucket: "temperature-cold-guard.firebasestorage.app",
-      messagingSenderId: "29693405672",
-      appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
-      measurementId: "G-XDHBRJ9S3W"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
+    // DOM Elements
     const tempEl = document.getElementById("temperature");
     const humEl = document.getElementById("humidity");
     const gpsEl = document.getElementById("gps");
 
-    // 🌍 แผนที่เริ่มต้น
-    const map = L.map('map').setView([13.736717, 100.523186], 6);
+    // Leaflet Map
+    const map = L.map('map').setView([14.12345, 100.98765], 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    const marker = L.marker([13.736717, 100.523186]).addTo(map);
+    const marker = L.marker([14.12345, 100.98765]).addTo(map);
 
-    // 📡 ข้อมูลเรียลไทม์จาก Firebase
-    onValue(ref(db, "data"), (snapshot) => {
-      const d = snapshot.val();
-      if (!d) return;
+    // --- Real-time Data ---
+    const tempRef = ref(db, "data/temperature");
+    const humRef = ref(db, "data/humidity");
+    const gpsRef = ref(db, "data/gps");
 
-      tempEl.textContent = `${d.temperature ?? "--"} °C`;
-      humEl.textContent = `${d.humidity ?? "--"} %`;
-      gpsEl.textContent = `${d.gps?.lat ?? "--"}, ${d.gps?.lng ?? "--"}`;
-
-      if (d.gps) {
-        marker.setLatLng([d.gps.lat, d.gps.lng]);
-        map.setView([d.gps.lat, d.gps.lng]);
-      }
+    onValue(tempRef, snap => tempEl.textContent = snap.val()?.toFixed(2) + "°C");
+    onValue(humRef, snap => humEl.textContent = snap.val()?.toFixed(2) + "%");
+    onValue(gpsRef, snap => {
+      const lat = snap.val()?.lat || 14.12345;
+      const lng = snap.val()?.lng || 100.98765;
+      gpsEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      marker.setLatLng([lat, lng]);
+      map.setView([lat, lng]);
     });
 
-    // 📈 กราฟย้อนหลัง
+    // --- Chart.js ---
     const ctx = document.getElementById("tempChart").getContext("2d");
     const tempChart = new Chart(ctx, {
-      type: "line",
-      data: { labels: [], datasets: [{ label: "อุณหภูมิย้อนหลัง (°C)", data: [], borderWidth: 2, borderColor: "rgba(37,99,235,0.8)", tension: 0.3, fill: true, backgroundColor: "rgba(37,99,235,0.1)" }]},
+      type: 'line',
+      data: { labels: [], datasets: [{ label: "อุณหภูมิ (°C)", data: [], borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.1)", fill: true }] },
       options: { responsive: true, scales: { y: { beginAtZero: false } } }
     });
 
-    // 🧩 โหลดข้อมูลย้อนหลัง 7 วัน
+    // Load 7-day History
     function loadHistory(days = 7) {
       const now = Date.now();
-      const limitTime = now - days * 24 * 60 * 60 * 1000;
+      const limitTime = now - days*24*60*60*1000;
       const q = query(ref(db, "History"), orderByKey(), limitToLast(1000));
-
-      onValue(q, (snapshot) => {
-        const all = snapshot.val();
-        if (!all) return;
-
-        const filtered = Object.entries(all)
+      onValue(q, snap => {
+        const data = snap.val();
+        if (!data) return;
+        const filtered = Object.entries(data)
           .filter(([ts]) => parseInt(ts) >= limitTime)
-          .map(([ts, val]) => ({
-            date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
-            temp: val.temperature ?? val.Temperature
-          }));
-
-        renderChart(filtered, 1);
-        renderPagination(filtered);
+          .map(([ts, val]) => ({ date: new Date(parseInt(ts)).toLocaleDateString("th-TH"), temp: val.Temperature }));
+        tempChart.data.labels = filtered.map(d => d.date);
+        tempChart.data.datasets[0].data = filtered.map(d => d.temp);
+        tempChart.update();
       });
     }
 
-    function renderChart(data, page) {
-      const perPage = 15;
-      const start = (page - 1) * perPage;
-      const end = Math.min(start + perPage, data.length);
-      const sliced = data.slice(start, end);
-
-      tempChart.data.labels = sliced.map(d => d.date);
-      tempChart.data.datasets[0].data = sliced.map(d => d.temp);
-      tempChart.update();
-    }
-
-    function renderPagination(data) {
-      const perPage = 15;
-      const totalPages = Math.ceil(data.length / perPage);
-      const container = document.getElementById("pagination");
-      container.innerHTML = "";
-
-      for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement("button");
-        btn.textContent = i;
-        btn.className = `px-3 py-1 rounded-lg ${i === 1 ? "bg-blue-600 text-white" : "bg-gray-200 hover:bg-blue-100"}`;
-        btn.onclick = () => renderChart(data, i);
-        container.appendChild(btn);
-      }
-    }
-
-    loadHistory(7);
+    loadHistory();
   </script>
 </body>
 </html>
