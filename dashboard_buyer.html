@@ -1,138 +1,136 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📊 Buyer Dashboard | Smart Cold Guard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyer Dashboard | Smart Cold Guard</title>
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    #map { height: 300px; border-radius: 1rem; }
-  </style>
+<style>
+  #map { height: 300px; border-radius: 1rem; }
+</style>
 </head>
 
 <body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen p-6 font-sans">
-  <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
-    <h1 class="text-3xl font-bold text-blue-700 mb-2">❄️ Smart Cold Guard</h1>
-    <p class="text-gray-500 mb-6">บัญชีผู้ซื้อ (Buyer)</p>
+<div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
+  <h1 class="text-3xl font-bold text-blue-700 mb-2">❄️ Smart Cold Guard</h1>
+  <p class="text-gray-500 mb-6">บัญชีผู้ซื้อ (Buyer)</p>
 
-    <!-- Current Data -->
-    <div class="grid md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
-        <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
-        <p id="temperature" class="text-3xl font-bold text-blue-700 mt-2">-- °C</p>
-      </div>
-      <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
-        <h2 class="text-lg font-semibold text-gray-600">ความชื้น</h2>
-        <p id="humidity" class="text-3xl font-bold text-blue-700 mt-2">-- %</p>
-      </div>
-      <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
-        <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
-        <p id="gps" class="text-lg font-medium text-blue-700 mt-2">--</p>
-      </div>
+  <!-- Current Data -->
+  <div class="grid md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
+      <p id="temperature" class="text-3xl font-bold text-blue-700 mt-2">-- °C</p>
     </div>
-
-    <!-- Map -->
-    <div id="map" class="mb-8"></div>
-
-    <!-- Chart Section -->
-    <h2 class="text-2xl font-semibold text-gray-700 mb-4">📈 กราฟอุณหภูมิย้อนหลัง (30 วัน)</h2>
-    <canvas id="tempChart" class="w-full mb-6"></canvas>
-    <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
-
-    <footer class="text-gray-400 text-sm text-center mt-10">
-      © 2025 Smart Cold Guard | Buyer Dashboard
-    </footer>
+    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">ความชื้น</h2>
+      <p id="humidity" class="text-3xl font-bold text-blue-700 mt-2">-- %</p>
+    </div>
+    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
+      <p id="gps" class="text-lg font-medium text-blue-700 mt-2">--</p>
+    </div>
   </div>
 
-  <script type="module">
-    import { db } from "./js/firebase-config.js";
-    import { ref, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+  <!-- Map -->
+  <div id="map" class="mb-8"></div>
 
-    const tempEl = document.getElementById("temperature");
-    const humEl = document.getElementById("humidity");
-    const gpsEl = document.getElementById("gps");
+  <!-- Chart -->
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📈 กราฟอุณหภูมิย้อนหลัง (30 วัน)</h2>
+  <canvas id="tempChart" class="w-full mb-6"></canvas>
 
-    // Map
-    let map, marker;
-    function initMap(lat=14.12345, lng=100.98765){
-      map = L.map("map").setView([lat,lng],10);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
-      marker = L.marker([lat,lng]).addTo(map);
-    }
+  <!-- Pagination -->
+  <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
 
-    // Realtime updates
-    onValue(ref(db,"Data"), snap=>{
-      const data=snap.val();
-      if(!data) return;
-      tempEl.textContent = data.Temperature?.toFixed(2) ?? "--";
-      humEl.textContent = data.Humidity?.toFixed(2) ?? "--";
-      const lat=data.GPS?.lat ?? 14.12345;
-      const lng=data.GPS?.lng ?? 100.98765;
-      gpsEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      if(!map) initMap(lat,lng);
-      else{
-        marker.setLatLng([lat,lng]);
-        map.setView([lat,lng]);
-      }
-    });
+  <footer class="text-gray-400 text-sm text-center mt-10">
+    © 2025 Smart Cold Guard | Buyer Dashboard
+  </footer>
+</div>
 
-    // Chart.js
-    const ctx = document.getElementById("tempChart").getContext("2d");
-    const tempChart = new Chart(ctx,{
-      type:"line",
-      data:{labels:[], datasets:[{label:"อุณหภูมิย้อนหลัง (°C)", data:[], borderColor:"rgba(37,99,235,0.8)", backgroundColor:"rgba(37,99,235,0.1)", fill:true, tension:0.3}]},
-      options:{responsive:true, scales:{y:{beginAtZero:false}}}
-    });
+<script type="module">
+import { db } from "./js/firebase-config.js";
+import { ref, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
-    // Load 30-day history
-    const perPage=15;
-    function loadHistory(days=30){
-      const now=Date.now();
-      const limitTime=now - days*24*60*60*1000;
-      const q=query(ref(db,"History"), orderByKey(), limitToLast(1000));
-      onValue(q, snap=>{
-        const allData=snap.val();
-        if(!allData) return;
-        const filtered=Object.entries(allData)
-          .filter(([ts])=>parseInt(ts)>=limitTime)
-          .map(([ts,val])=>({date:new Date(parseInt(ts)).toLocaleString("th-TH",{hour12:false}), temp:val.Temperature}));
-        renderChartPage(filtered,1);
-        renderPagination(filtered);
-      });
-    }
+const tempEl = document.getElementById("temperature");
+const humEl = document.getElementById("humidity");
+const gpsEl = document.getElementById("gps");
 
-    function renderChartPage(data,page){
-      const start=(page-1)*perPage;
-      const sliced=data.slice(start,start+perPage);
-      tempChart.data.labels=sliced.map(d=>d.date);
-      tempChart.data.datasets[0].data=sliced.map(d=>d.temp);
-      tempChart.update();
-    }
+// Map
+const map = L.map('map').setView([14.12345,100.98765],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+const marker = L.marker([14.12345,100.98765]).addTo(map);
 
-    function renderPagination(data){
-      const container=document.getElementById("pagination");
-      container.innerHTML="";
-      const totalPages=Math.ceil(data.length/perPage);
-      for(let i=1;i<=totalPages;i++){
-        const btn=document.createElement("button");
-        btn.textContent=i;
-        btn.className=`px-3 py-1 rounded-lg ${i===1?"bg-blue-600 text-white":"bg-gray-200 hover:bg-blue-100"}`;
-        btn.onclick=()=>renderChartPage(data,i);
-        container.appendChild(btn);
-      }
-    }
+// Real-time Data
+onValue(ref(db,"Data"),snap=>{
+  const data = snap.val();
+  if(!data) return;
+  tempEl.textContent = `${data.Temperature ?? "--"} °C`;
+  humEl.textContent = `${data.Humidity ?? "--"} %`;
+  gpsEl.textContent = `${data.GPS?.lat ?? "--"}, ${data.GPS?.lng ?? "--"}`;
+  if(data.GPS){
+    marker.setLatLng([data.GPS.lat,data.GPS.lng]);
+    map.setView([data.GPS.lat,data.GPS.lng]);
+  }
+});
 
-    window.onload = ()=>loadHistory(30);
-  </script>
+// Chart
+const ctx = document.getElementById("tempChart").getContext("2d");
+const chart = new Chart(ctx,{
+  type:"line",
+  data:{labels:[],datasets:[{label:"อุณหภูมิย้อนหลัง (°C)",data:[],borderColor:"rgba(37,99,235,0.8)",fill:true,backgroundColor:"rgba(37,99,235,0.1)",tension:0.3}]},
+  options:{responsive:true,scales:{y:{beginAtZero:false}}}
+});
+
+// Load History 30 วัน
+function loadHistory(days=30){
+  const now = Date.now();
+  const limitTime = now - days*24*60*60*1000;
+  const q = query(ref(db,"History"),orderByKey(),limitToLast(1000));
+
+  onValue(q,snap=>{
+    const allData = snap.val(); if(!allData) return;
+    const filtered = Object.entries(allData)
+      .filter(([ts])=>parseInt(ts)>=limitTime)
+      .map(([ts,val])=>({date:new Date(parseInt(ts)).toLocaleString("th-TH",{hour12:false}),temp:val.Temperature}));
+    renderChart(filtered,1);
+    renderPagination(filtered);
+  });
+}
+
+function renderChart(data,page){
+  const perPage = 15;
+  const start = (page-1)*perPage;
+  const end = Math.min(start+perPage,data.length);
+  const sliced = data.slice(start,end);
+  chart.data.labels = sliced.map(d=>d.date);
+  chart.data.datasets[0].data = sliced.map(d=>d.temp);
+  chart.update();
+}
+
+function renderPagination(data){
+  const perPage = 15;
+  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
+  const container = document.getElementById("pagination");
+  container.innerHTML="";
+  for(let i=1;i<=totalPages;i++){
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    btn.className=`px-3 py-1 rounded-lg transition-all ${i===1?"bg-blue-600 text-white":"bg-gray-200 hover:bg-blue-100"}`;
+    btn.onclick=()=>renderChart(data,i);
+    container.appendChild(btn);
+  }
+}
+
+loadHistory(30);
+</script>
 </body>
 </html>
