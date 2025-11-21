@@ -1,277 +1,145 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Seller Dashboard - Smart Cold Guard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seller Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>#map{height:300px;border-radius:1rem;}</style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-sky-100 min-h-screen p-6">
-  <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow p-6">
+<body class="bg-blue-50 font-sans p-6">
 
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-blue-700">❄️ Seller Dashboard</h1>
-      <div>
-        <button onclick="logout()" class="px-3 py-2 bg-gray-100 rounded">Logout</button>
-      </div>
+<div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
+  <h1 class="text-3xl font-bold text-blue-700 mb-2">❄️ Smart Cold Guard - Seller</h1>
+
+  <!-- Realtime Data -->
+  <div class="grid md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
+      <p id="temperature" class="text-3xl font-bold text-blue-700 mt-2">-- °C</p>
     </div>
-
-    <!-- top: realtime cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">Temperature</div>
-        <div id="curTemp" class="text-3xl font-bold text-blue-700">-- °C</div>
-      </div>
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">Humidity</div>
-        <div id="curHum" class="text-3xl font-bold text-blue-700">-- %</div>
-      </div>
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">GPS</div>
-        <div id="curGps" class="text-lg font-medium text-blue-700">--</div>
-      </div>
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">Settings</div>
-        <div id="curSetting" class="text-lg font-medium text-blue-700">--</div>
-      </div>
+    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">ความชื้น</h2>
+      <p id="humidity" class="text-3xl font-bold text-blue-700 mt-2">-- %</p>
     </div>
-
-    <div class="grid md:grid-cols-2 gap-6">
-      <!-- Left: Map + chart -->
-      <div class="space-y-4">
-        <div id="map" class="h-64 rounded-lg overflow-hidden"></div>
-
-        <div class="bg-white rounded p-4 shadow">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="font-semibold">กราฟอุณหภูมิ (ย้อนหลัง)</h3>
-            <div class="flex items-center gap-2">
-              <label class="text-sm">View</label>
-              <select id="viewMode" class="border rounded p-1" onchange="onViewModeChange()">
-                <option value="daily">รายวัน</option>
-                <option value="weekly">รายสัปดาห์</option>
-                <option value="monthly">รายเดือน</option>
-              </select>
-            </div>
-          </div>
-
-          <canvas id="chartSeller" height="150"></canvas>
-        </div>
-      </div>
-
-      <!-- Right: history table + settings -->
-      <div class="space-y-4">
-        <div class="bg-white rounded p-4 shadow">
-          <h3 class="font-semibold mb-3">ประวัติย้อนหลัง (30 วัน)</h3>
-          <table class="w-full text-left">
-            <thead class="text-sm text-gray-500">
-              <tr><th class="p-2">เวลา</th><th class="p-2">Temp (°C)</th></tr>
-            </thead>
-            <tbody id="historyBody"></tbody>
-          </table>
-
-          <div class="flex justify-between items-center mt-3">
-            <div id="pageInfo" class="text-sm text-gray-600">หน้า 1</div>
-            <div>
-              <button onclick="prevPage()" class="px-3 py-1 bg-gray-100 rounded mr-2">ก่อนหน้า</button>
-              <button onclick="nextPage()" class="px-3 py-1 bg-gray-100 rounded">ถัดไป</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded p-4 shadow">
-          <h3 class="font-semibold mb-3">ตั้งค่าแจ้งเตือน</h3>
-          <label class="block text-sm text-gray-600">Min Temp (°C)</label>
-          <input id="minTemp" class="w-full border rounded p-2 mb-3" type="number">
-
-          <label class="block text-sm text-gray-600">Max Temp (°C)</label>
-          <input id="maxTemp" class="w-full border rounded p-2 mb-3" type="number">
-
-          <label class="block text-sm text-gray-600">Phones (คั่นด้วย ,)</label>
-          <input id="phones" class="w-full border rounded p-2 mb-3" placeholder="6681...,6687...">
-
-          <button onclick="saveSellerSettings()" class="bg-blue-600 text-white px-4 py-2 rounded">บันทึก</button>
-        </div>
-      </div>
+    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
+      <p id="gps" class="text-lg font-medium text-blue-700 mt-2">--</p>
     </div>
-
   </div>
 
-  <script type="module">
-    import { db } from "./js/firebase-config.js";
-    import { ref, onValue, get, set, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  <!-- Map -->
+  <div id="map" class="mb-6"></div>
 
-    // state
-    let role = sessionStorage.getItem("cg_role") || null;
-    if (!role || role !== "Seller") {
-      // If someone opened directly, redirect to login
-      // You can comment out during dev
-      // window.location.href = "index.html";
-    }
+  <!-- Chart -->
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📈 กราฟย้อนหลัง (30 วัน)</h2>
+  <canvas id="tempChart" class="w-full mb-6"></canvas>
 
-    // DOM
-    const curTemp = document.getElementById("curTemp");
-    const curHum = document.getElementById("curHum");
-    const curGps = document.getElementById("curGps");
-    const curSetting = document.getElementById("curSetting");
-    const minTempEl = document.getElementById("minTemp");
-    const maxTempEl = document.getElementById("maxTemp");
-    const phonesEl = document.getElementById("phones");
+  <!-- Pagination -->
+  <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
 
-    // Map init
-    let map = L.map('map').setView([14.12345,100.98765], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    let marker = L.marker([14.12345,100.98765]).addTo(map);
+  <!-- Settings -->
+  <div class="p-4 bg-blue-50 rounded-2xl shadow">
+    <h2 class="text-xl font-semibold mb-4">ตั้งค่าแจ้งเตือนอุณหภูมิ</h2>
+    <div class="mb-2"><label>อุณหภูมิต่ำสุด (°C)</label><input id="minTemp" type="number" class="border p-2 w-full rounded"></div>
+    <div class="mb-2"><label>อุณหภูมิสูงสุด (°C)</label><input id="maxTemp" type="number" class="border p-2 w-full rounded"></div>
+    <div class="mb-2"><label>เบอร์โทรแจ้งเตือน (คั่นด้วย ,)</label><input id="phones" type="text" class="border p-2 w-full rounded"></div>
+    <button onclick="saveSettings()" class="bg-blue-600 text-white px-4 py-2 mt-2 rounded">บันทึกการตั้งค่า</button>
+  </div>
 
-    // Chart
-    const ctx = document.getElementById("chartSeller").getContext("2d");
-    const sellerChart = new Chart(ctx, {
-      type: 'line',
-      data: { labels: [], datasets: [{ label: 'Temp (°C)', data: [], borderColor: '#2563EB', backgroundColor:'rgba(37,99,235,0.08)', fill:true }]},
-      options: { responsive: true, maintainAspectRatio:false }
-    });
+</div>
 
-    // history state & pagination
-    let historyData = []; // [{ts, temp}]
-    let perPage = 10;
-    let currentPage = 1;
-    let viewMode = 'daily';
+<script type="module">
+import { db } from './js/firebase-config.js';
+import { ref, onValue, set, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
 
-    // realtime Data listener (Data node)
-    const dataRef = ref(db, "Data");
-    onValue(dataRef, snap => {
-      if (!snap.exists()) return;
-      const d = snap.val();
-      curTemp.textContent = (d.Temperature ?? "--") + " °C";
-      curHum.textContent = (d.Humidity ?? "--") + " %";
+// Elements
+const tempEl = document.getElementById('temperature');
+const humEl = document.getElementById('humidity');
+const gpsEl = document.getElementById('gps');
 
-      if (d.GPS && d.GPS.lat && d.GPS.lng) {
-        curGps.textContent = `${d.GPS.lat.toFixed(5)}, ${d.GPS.lng.toFixed(5)}`;
-        marker.setLatLng([d.GPS.lat, d.GPS.lng]);
-        map.setView([d.GPS.lat, d.GPS.lng]);
-      }
+// Map
+const map = L.map('map').setView([14.12345,100.98765],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const marker = L.marker([14.12345,100.98765]).addTo(map);
 
-      // update current settings display
-      get(ref(db,'settings')).then(snapS => {
-        if (snapS.exists()) {
-          const s = snapS.val();
-          curSetting.textContent = `Min:${s.minTemp} / Max:${s.maxTemp}`;
-        }
-      });
-    });
+// Real-time Data
+onValue(ref(db,'Data'), snapshot=>{
+  const data = snapshot.val();
+  if(!data) return;
+  tempEl.textContent = `${data.Temperature ?? '--'} °C`;
+  humEl.textContent = `${data.Humidity ?? '--'} %`;
+  gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
+  if(data.GPS) { marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
+});
 
-    // load settings to form
-    onValue(ref(db,'settings'), snap => {
-      if (!snap.exists()) return;
-      const s = snap.val();
-      minTempEl.value = s.minTemp ?? '';
-      maxTempEl.value = s.maxTemp ?? '';
-      phonesEl.value = (s.phones ?? []).join(',');
-    });
+// Chart
+const ctx = document.getElementById('tempChart').getContext('2d');
+const tempChart = new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'อุณหภูมิ (°C)',data:[],borderWidth:2,tension:0.3}]},options:{responsive:true,scales:{y:{beginAtZero:false}}}});
 
-    // save settings
-    async function saveSellerSettings(){
-      const minV = parseFloat(minTempEl.value);
-      const maxV = parseFloat(maxTempEl.value);
-      const phones = phonesEl.value.split(',').map(p=>p.trim()).filter(Boolean);
-      if (isNaN(minV) || isNaN(maxV)) { alert('กรุณากรอกค่าให้ถูกต้อง'); return; }
-      await set(ref(db,'settings'), { minTemp: minV, maxTemp: maxV, phones: phones });
-      alert('บันทึกเรียบร้อย');
-    }
+// Load History 30 วัน
+function loadHistory(days=30){
+  const now = Date.now();
+  const limitTime = now - days*24*60*60*1000;
+  const q = query(ref(db,'History'),orderByKey(),limitToLast(1000));
+  onValue(q,snapshot=>{
+    const allData = snapshot.val(); if(!allData) return;
+    const filtered = Object.entries(allData).filter(([ts])=>parseInt(ts)>=limitTime).map(([ts,val])=>({date:new Date(parseInt(ts)).toLocaleString('th-TH',{hour12:false}),temp:val.Temperature}));
+    renderChart(filtered,1);
+    renderPagination(filtered);
+  });
+}
 
-    // Load History (30 days)
-    function loadHistory(days = 30){
-      const now = Date.now();
-      const limit = now - days*24*60*60*1000;
-      const q = query(ref(db,'History'), orderByKey(), limitToLast(2000));
-      onValue(q, snap => {
-        const all = snap.val();
-        if (!all) { historyData = []; renderHistory(); return; }
-        historyData = Object.entries(all)
-          .map(([k,v])=>({ ts: parseInt(k), temp: v.Temperature }))
-          .filter(it=> it.ts >= limit)
-          .sort((a,b)=> b.ts - a.ts); // newest first
-        currentPage = 1;
-        renderHistory();
-        renderChart();
-      });
-    }
+function renderChart(data,page){
+  const perPage = 10;
+  const start = (page-1)*perPage;
+  const end = Math.min(start+perPage,data.length);
+  const sliced = data.slice(start,end);
+  tempChart.data.labels = sliced.map(d=>d.date);
+  tempChart.data.datasets[0].data = sliced.map(d=>d.temp);
+  tempChart.update();
+}
 
-    function renderHistory(){
-      const tbody = document.getElementById('historyBody');
-      tbody.innerHTML = '';
-      const start = (currentPage-1)*perPage;
-      const slice = historyData.slice(start, start + perPage);
-      slice.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="p-2 text-sm">${new Date(row.ts).toLocaleString()}</td><td class="p-2 text-sm">${row.temp.toFixed(2)}</td>`;
-        tbody.appendChild(tr);
-      });
-      document.getElementById('pageInfo').textContent = `หน้า ${currentPage} / ${Math.max(1, Math.ceil(historyData.length/perPage))}`;
-    }
+function renderPagination(data){
+  const perPage = 10;
+  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
+  const container = document.getElementById('pagination');
+  container.innerHTML='';
+  for(let i=1;i<=totalPages;i++){
+    const btn=document.createElement('button');
+    btn.textContent=i;
+    btn.className=`px-3 py-1 rounded-lg ${i===1?'bg-blue-600 text-white':'bg-gray-200 hover:bg-blue-100'}`;
+    btn.onclick=()=>renderChart(data,i);
+    container.appendChild(btn);
+  }
+}
 
-    function prevPage(){ if (currentPage>1){ currentPage--; renderHistory(); } }
-    function nextPage(){ if (currentPage * perPage < historyData.length){ currentPage++; renderHistory(); } }
+loadHistory(30);
 
-    // chart rendering depending on viewMode
-    function renderChart(){
-      if (!historyData.length) { sellerChart.data.labels=[]; sellerChart.data.datasets[0].data=[]; sellerChart.update(); return; }
+// Load & Save Settings
+async function loadSettings(){
+  const snapshot = await get(ref(db,'settings'));
+  if(snapshot.exists()){
+    const data = snapshot.val();
+    document.getElementById('minTemp').value = data.minTemp??'';
+    document.getElementById('maxTemp').value = data.maxTemp??'';
+    document.getElementById('phones').value = data.phones?data.phones.join(','):'';
+  }
+}
+loadSettings();
 
-      if (viewMode === 'daily') {
-        // daily points: use each timestamp sorted ascending (old->new)
-        const pts = historyData.slice().reverse().map(it=> ({ t:new Date(it.ts).toLocaleString(), v: it.temp }));
-        sellerChart.data.labels = pts.map(p=>p.t);
-        sellerChart.data.datasets[0].data = pts.map(p=>p.v);
-      } else if (viewMode === 'weekly') {
-        // weekly aggregation: group by ISO week-year
-        const groups = {};
-        historyData.forEach(it=>{
-          const d = new Date(it.ts);
-          // compute year-week key
-          const onejan = new Date(d.getFullYear(),0,1);
-          const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay()+1)/7);
-          const key = `${d.getFullYear()}-W${week}`;
-          groups[key] = groups[key] || { sum:0, cnt:0 };
-          groups[key].sum += it.temp; groups[key].cnt++;
-        });
-        const keys = Object.keys(groups).sort();
-        sellerChart.data.labels = keys;
-        sellerChart.data.datasets[0].data = keys.map(k=> (groups[k].sum / groups[k].cnt).toFixed(2));
-      } else { // monthly
-        const groups = {};
-        historyData.forEach(it=>{
-          const d = new Date(it.ts);
-          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-          groups[key] = groups[key] || { sum:0, cnt:0 };
-          groups[key].sum += it.temp; groups[key].cnt++;
-        });
-        const keys = Object.keys(groups).sort();
-        sellerChart.data.labels = keys;
-        sellerChart.data.datasets[0].data = keys.map(k=> (groups[k].sum / groups[k].cnt).toFixed(2));
-      }
-      sellerChart.update();
-    }
+async function saveSettings(){
+  const minTemp = parseFloat(document.getElementById('minTemp').value);
+  const maxTemp = parseFloat(document.getElementById('maxTemp').value);
+  const phones = document.getElementById('phones').value.split(',').map(p=>p.trim()).filter(p=>p!=='');
+  if(isNaN(minTemp)||isNaN(maxTemp)){ alert('กรุณากรอกค่าอุณหภูมิให้ถูกต้อง'); return;}
+  await set(ref(db,'settings'),{minTemp,maxTemp,phones});
+  alert('อัปเดตการตั้งค่าเรียบร้อยแล้ว!');
+}
+</script>
 
-    function onViewModeChange(){
-      viewMode = document.getElementById('viewMode').value;
-      renderChart();
-    }
-
-    // initial load
-    loadHistory(30);
-
-    function logout(){
-      sessionStorage.removeItem('cg_role');
-      sessionStorage.removeItem('cg_user');
-      window.location.href = 'index.html';
-    }
-
-    window.prevPage = prevPage;
-    window.nextPage = nextPage;
-    window.saveSellerSettings = saveSellerSettings;
-    window.onViewModeChange = onViewModeChange;
-  </script>
 </body>
 </html>
