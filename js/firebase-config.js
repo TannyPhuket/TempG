@@ -1,15 +1,16 @@
 // js/firebase-config.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "PUT_YOUR_API_KEY_HERE",
+  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
   authDomain: "temperature-cold-guard.firebaseapp.com",
   databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "temperature-cold-guard",
   storageBucket: "temperature-cold-guard.firebasestorage.app",
-  messagingSenderId: "PUT_SENDER_ID",
-  appId: "PUT_APP_ID"
+  messagingSenderId: "29693405672",
+  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
+  measurementId: "G-XDHBRJ9S3W"
 };
 
 const app = initializeApp(firebaseConfig);
