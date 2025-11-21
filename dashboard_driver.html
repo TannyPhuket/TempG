@@ -1,95 +1,115 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Driver Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>#map{height:300px;border-radius:1rem;}</style>
 </head>
-<body class="bg-gradient-to-br from-sky-50 to-blue-100 min-h-screen p-6">
-  <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-blue-700">🚚 Driver Dashboard</h1>
-      <button onclick="logout()" class="px-3 py-2 bg-gray-100 rounded">Logout</button>
+<body class="bg-green-50 font-sans p-6">
+
+<div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
+  <h1 class="text-3xl font-bold text-green-700 mb-2">🚚 Smart Cold Guard - Driver</h1>
+
+  <!-- Realtime Data -->
+  <div class="grid md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-green-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
+      <p id="temperature" class="text-3xl font-bold text-green-700 mt-2">-- °C</p>
     </div>
-
-    <div class="grid md:grid-cols-3 gap-4 mb-6">
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">Temperature</div>
-        <div id="curTemp" class="text-3xl font-bold text-blue-700">-- °C</div>
-      </div>
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">Humidity</div>
-        <div id="curHum" class="text-3xl font-bold text-blue-700">-- %</div>
-      </div>
-      <div class="p-4 bg-blue-50 rounded shadow">
-        <div class="text-sm text-gray-500">GPS</div>
-        <div id="curGps" class="text-lg font-medium text-blue-700">--</div>
-      </div>
+    <div class="bg-green-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">ความชื้น</h2>
+      <p id="humidity" class="text-3xl font-bold text-green-700 mt-2">-- %</p>
     </div>
-
-    <div id="map" class="h-64 rounded mb-6"></div>
-
-    <div class="bg-white rounded p-4 shadow">
-      <h3 class="font-semibold mb-3">กราฟอุณหภูมิ (7 วันย้อนหลัง)</h3>
-      <canvas id="chartDriver" height="120"></canvas>
-
-      <div class="mt-3 text-sm text-gray-600">แสดงข้อมูลย้อนหลังไม่เกิน 7 วัน</div>
+    <div class="bg-green-50 rounded-2xl p-4 text-center shadow">
+      <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
+      <p id="gps" class="text-lg font-medium text-green-700 mt-2">--</p>
     </div>
   </div>
 
-  <script type="module">
-    import { db } from "./js/firebase-config.js";
-    import { ref, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  <!-- Map -->
+  <div id="map" class="mb-6"></div>
 
-    // map
-    let map = L.map('map').setView([14.12345,100.98765],10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    let marker = L.marker([14.12345,100.98765]).addTo(map);
+  <!-- Chart -->
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📉 กราฟย้อนหลัง (7 วัน)</h2>
+  <canvas id="tempChart" class="w-full mb-6"></canvas>
 
-    const curTemp = document.getElementById('curTemp');
-    const curHum = document.getElementById('curHum');
-    const curGps = document.getElementById('curGps');
+  <!-- Pagination -->
+  <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
 
-    // chart
-    const ctx = document.getElementById('chartDriver').getContext('2d');
-    const chartDriver = new Chart(ctx, { type:'line', data:{ labels:[], datasets:[{label:'Temp', data:[], borderColor:'#2563EB', fill:true, backgroundColor:'rgba(37,99,235,0.08)'}] }, options:{responsive:true} });
+</div>
 
-    // realtime data
-    onValue(ref(db,'Data'), snap=>{
-      if (!snap.exists()) return;
-      const d = snap.val();
-      curTemp.textContent = (d.Temperature ?? '--') + ' °C';
-      curHum.textContent = (d.Humidity ?? '--') + ' %';
-      if (d.GPS && d.GPS.lat && d.GPS.lng) {
-        curGps.textContent = `${d.GPS.lat.toFixed(5)}, ${d.GPS.lng.toFixed(5)}`;
-        marker.setLatLng([d.GPS.lat, d.GPS.lng]); map.setView([d.GPS.lat, d.GPS.lng]);
-      }
-    });
+<script type="module">
+import { db } from './js/firebase-config.js';
+import { ref, onValue, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
 
-    // load history up to 7 days (and limit to reasonable number)
-    function loadHistory(days=7){
-      const now = Date.now();
-      const limit = now - days*24*60*60*1000;
-      const q = query(ref(db,'History'), orderByKey(), limitToLast(1000));
-      onValue(q, snap=>{
-        const all = snap.val(); if(!all){ chartDriver.data.labels=[]; chartDriver.data.datasets[0].data=[]; chartDriver.update(); return; }
-        const arr = Object.entries(all)
-          .map(([k,v])=>({ts: parseInt(k), temp: v.Temperature}))
-          .filter(it=> it.ts >= limit)
-          .sort((a,b)=> a.ts - b.ts); // old -> new
-        chartDriver.data.labels = arr.map(it=> new Date(it.ts).toLocaleString());
-        chartDriver.data.datasets[0].data = arr.map(it=> it.temp);
-        chartDriver.update();
-      });
-    }
+// Elements
+const tempEl = document.getElementById('temperature');
+const humEl = document.getElementById('humidity');
+const gpsEl = document.getElementById('gps');
 
-    loadHistory(7);
+// Map
+const map = L.map('map').setView([14.12345,100.98765],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const marker = L.marker([14.12345,100.98765]).addTo(map);
 
-    function logout(){ sessionStorage.removeItem('cg_role'); sessionStorage.removeItem('cg_user'); window.location.href='index.html'; }
-  </script>
+// Realtime Data
+onValue(ref(db,'Data'), snapshot=>{
+  const data = snapshot.val();
+  if(!data) return;
+  tempEl.textContent = `${data.Temperature ?? '--'} °C`;
+  humEl.textContent = `${data.Humidity ?? '--'} %`;
+  gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
+  if(data.GPS){ marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
+});
+
+// Chart
+const ctx = document.getElementById('tempChart').getContext('2d');
+const tempChart = new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'อุณหภูมิ (°C)',data:[],borderWidth:2,tension:0.3,borderColor:'rgba(34,197,94,0.8)',fill:true,backgroundColor:'rgba(34,197,94,0.1)'}]},options:{responsive:true,scales:{y:{beginAtZero:false}}}});
+
+// Load History 7 วัน
+function loadHistory(days=7){
+  const now = Date.now();
+  const limitTime = now - days*24*60*60*1000;
+  const q = query(ref(db,'History'),orderByKey(),limitToLast(1000));
+  onValue(q,snapshot=>{
+    const allData = snapshot.val(); if(!allData) return;
+    const filtered = Object.entries(allData).filter(([ts])=>parseInt(ts)>=limitTime).map(([ts,val])=>({date:new Date(parseInt(ts)).toLocaleString('th-TH',{hour12:false}),temp:val.Temperature}));
+    renderChart(filtered,1);
+    renderPagination(filtered);
+  });
+}
+
+function renderChart(data,page){
+  const perPage = 10;
+  const start = (page-1)*perPage;
+  const end = Math.min(start+perPage,data.length);
+  const sliced = data.slice(start,end);
+  tempChart.data.labels = sliced.map(d=>d.date);
+  tempChart.data.datasets[0].data = sliced.map(d=>d.temp);
+  tempChart.update();
+}
+
+function renderPagination(data){
+  const perPage = 10;
+  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
+  const container = document.getElementById('pagination');
+  container.innerHTML='';
+  for(let i=1;i<=totalPages;i++){
+    const btn=document.createElement('button');
+    btn.textContent=i;
+    btn.className=`px-3 py-1 rounded-lg ${i===1?'bg-green-600 text-white':'bg-gray-200 hover:bg-green-100'}`;
+    btn.onclick=()=>renderChart(data,i);
+    container.appendChild(btn);
+  }
+}
+
+loadHistory(7);
+</script>
+
 </body>
 </html>
