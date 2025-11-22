@@ -1,44 +1,17 @@
 // src/components/Charts/TempHistoryChart.jsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { db, collection, query, where, orderBy, onSnapshot } from '../../services/firebase';
+import useDeviceHistory from '../../hooks/useDeviceHistory';
+import { useAuth } from '../../context/AuthContext';
 
-export default function TempHistoryChart({ deviceId, period = 'day' }) {
-  const [data, setData] = useState([]);
+export default function TempHistoryChart({ deviceId }) {
+  const { user } = useAuth();
+  const history = useDeviceHistory(deviceId, user?.role);
 
-  useEffect(() => {
-    // period: 'day', 'week', 'month'
-    const now = new Date();
-    let startTime;
-
-    if (period === 'day') {
-      startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (period === 'week') {
-      const dayOfWeek = now.getDay();
-      startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
-    } else if (period === 'month') {
-      startTime = new Date(now.getFullYear(), now.getMonth(), 1);
-    }
-
-    const q = query(
-      collection(db, 'devices', deviceId, 'history'),
-      where('timestamp', '>=', startTime),
-      orderBy('timestamp')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chartData = snapshot.docs.map(doc => {
-        const d = doc.data();
-        return {
-          time: d.timestamp.toDate().toLocaleString(),
-          temp: d.temp
-        };
-      });
-      setData(chartData);
-    });
-
-    return () => unsubscribe();
-  }, [deviceId, period]);
+  const data = history.map(d => ({
+    time: d.timestamp.toDate().toLocaleString(),
+    temp: d.temp
+  }));
 
   return (
     <ResponsiveContainer width="100%" height={300}>
