@@ -1,67 +1,7 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seller Dashboard</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>#map{height:300px;border-radius:1rem;}</style>
-</head>
-<body class="bg-blue-50 font-sans p-6">
-
-<div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
-  <h1 class="text-3xl font-bold text-blue-700 mb-2">❄️ Smart Cold Guard - Seller</h1>
-
-  <!-- Realtime Data -->
-  <div class="grid md:grid-cols-3 gap-4 mb-6">
-    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
-      <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
-      <p id="temperature" class="text-3xl font-bold text-blue-700 mt-2">-- °C</p>
-    </div>
-    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
-      <h2 class="text-lg font-semibold text-gray-600">ความชื้น</h2>
-      <p id="humidity" class="text-3xl font-bold text-blue-700 mt-2">-- %</p>
-    </div>
-    <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
-      <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
-      <p id="gps" class="text-lg font-medium text-blue-700 mt-2">--</p>
-    </div>
-  </div>
-
-  <!-- Map -->
-  <div id="map" class="mb-6"></div>
-
-  <!-- History Table -->
-  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📊 บันทึกย้อนหลัง (14 วัน)</h2>
-  <table class="w-full bg-white rounded shadow mb-6">
-    <thead class="bg-blue-100">
-      <tr>
-        <th class="p-2">วันที่ / เวลา</th>
-        <th class="p-2">อุณหภูมิ (°C)</th>
-        <th class="p-2">ความชื้น (%)</th>
-      </tr>
-    </thead>
-    <tbody id="historyBody"></tbody>
-  </table>
-
-  <!-- Pagination -->
-  <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
-
-  <!-- Settings -->
-  <div class="p-4 bg-blue-50 rounded-2xl shadow">
-    <h2 class="text-xl font-semibold mb-4">ตั้งค่าแจ้งเตือนอุณหภูมิ</h2>
-    <div class="mb-2"><label>อุณหภูมิต่ำสุด (°C)</label><input id="minTemp" type="number" class="border p-2 w-full rounded"></div>
-    <div class="mb-2"><label>อุณหภูมิสูงสุด (°C)</label><input id="maxTemp" type="number" class="border p-2 w-full rounded"></div>
-    <div class="mb-2"><label>เบอร์โทรแจ้งเตือน (คั่นด้วย ,)</label><input id="phones" type="text" class="border p-2 w-full rounded"></div>
-    <button onclick="saveSettings()" class="bg-blue-600 text-white px-4 py-2 mt-2 rounded">บันทึกการตั้งค่า</button>
-  </div>
-</div>
-
 <script type="module">
 import { db } from './js/firebase-config.js';
-import { ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { generateHistory, addRealtimeData } from './generate_history.js';
 
 // Elements
 const tempEl = document.getElementById('temperature');
@@ -71,39 +11,12 @@ const historyBody = document.getElementById('historyBody');
 const pagination = document.getElementById('pagination');
 
 // Map
-const map = L.map('map').setView([7.890, 98.3817], 12);
+const map = L.map('map').setView([7.890,98.3817],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-const marker = L.marker([7.890, 98.3817]).addTo(map);
+const marker = L.marker([7.890,98.3817]).addTo(map);
 
-// ------------------ สร้าง History 14 วันแบบสุ่ม ------------------
-async function generateHistory() {
-  const histRef = ref(db,'History');
-  const snapshot = await get(histRef);
-  if(snapshot.exists()) return; // มีแล้วไม่สร้างซ้ำ
-
-  const updates = {};
-  const interval = 5*60*1000; // 5 นาที
-  const now = Date.now();
-  const startTime = now - 14*24*60*60*1000;
-
-  function randomTemp(){ 
-    const base = parseFloat((Math.random()*6+2).toFixed(1)); // 2-8°C
-    // เพิ่ม chance เกิน 8°C 3-5 ครั้ง/วัน
-    if(Math.random()<0.05) return parseFloat((Math.random()*3+8.1).toFixed(1));
-    return base;
-  }
-  function randomHum(){ return parseFloat((Math.random()*10+70).toFixed(1)); } // 70-80%
-
-  let time=startTime;
-  while(time<=now){
-    const temp = randomTemp();
-    updates[time] = { Temperature: temp, Humidity: randomHum(), GPS:{lat:7.890,lng:98.3817} };
-    time+=interval;
-  }
-  await set(histRef, updates);
-  console.log('สร้าง History 14 วันเรียบร้อย');
-}
-generateHistory();
+// ------------------ Generate History ------------------
+await generateHistory(); // สร้าง 14 วันย้อนหลังถ้ายังไม่มี
 
 // ------------------ Realtime Data ------------------
 onValue(ref(db,'Data'), snapshot=>{
@@ -117,11 +30,10 @@ onValue(ref(db,'Data'), snapshot=>{
 
 // ------------------ Load History ------------------
 function loadHistory(){
-  const histRef = ref(db,'History');
-  onValue(histRef, snapshot=>{
+  onValue(ref(db,'History'), snapshot=>{
     const allData = snapshot.val();
     if(!allData) return;
-    const sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0])); // เรียงล่าสุดก่อน
+    const sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0]));
     renderHistory(sorted,1);
   });
 }
@@ -133,10 +45,15 @@ function renderHistory(data,page){
   const end = Math.min(start+perPage,data.length);
   historyBody.innerHTML='';
   for(let i=start;i<end;i++){
-    const d=data[i];
+    const d = data[i];
     const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
-    const tempClass = d[1].Temperature>8 ? 'text-red-600 font-bold' : '';
-    historyBody.innerHTML += `<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
+    const temp = d[1].Temperature;
+    const tempClass = temp > 8 ? 'text-red-600 font-bold' : '';
+    historyBody.innerHTML += `<tr class="border-b">
+      <td class="p-2">${dt}</td>
+      <td class="p-2 ${tempClass}">${temp}</td>
+      <td class="p-2">${d[1].Humidity}</td>
+    </tr>`;
   }
 
   // Pagination
@@ -153,27 +70,6 @@ function renderHistory(data,page){
 
 loadHistory();
 
-// ------------------ Load & Save Settings ------------------
-async function loadSettings(){
-  const snapshot = await get(ref(db,'settings'));
-  if(snapshot.exists()){
-    const data = snapshot.val();
-    document.getElementById('minTemp').value = data.minTemp??'';
-    document.getElementById('maxTemp').value = data.maxTemp??'';
-    document.getElementById('phones').value = data.phones?data.phones.join(','):'';
-  }
-}
-loadSettings();
-
-async function saveSettings(){
-  const minTemp = parseFloat(document.getElementById('minTemp').value);
-  const maxTemp = parseFloat(document.getElementById('maxTemp').value);
-  const phones = document.getElementById('phones').value.split(',').map(p=>p.trim()).filter(p=>p!=='');
-  if(isNaN(minTemp)||isNaN(maxTemp)){ alert('กรุณากรอกค่าอุณหภูมิให้ถูกต้อง'); return;}
-  await set(ref(db,'settings'),{minTemp,maxTemp,phones});
-  alert('อัปเดตการตั้งค่าเรียบร้อยแล้ว!');
-}
+// ------------------ Simulate Realtime Every 5 min ------------------
+setInterval(()=>addRealtimeData('Seller'), 5*60*1000);
 </script>
-
-</body>
-</html>
