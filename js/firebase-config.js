@@ -7,7 +7,7 @@ const firebaseConfig = {
   authDomain: "temperature-cold-guard.firebaseapp.com",
   databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "temperature-cold-guard",
-  storageBucket: "temperature-cold-guard.appspot.com",  // ✅ แก้จุดนี้
+  storageBucket: "temperature-cold-guard.firebasestorage.app",
   messagingSenderId: "29693405672",
   appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
   measurementId: "G-XDHBRJ9S3W"
