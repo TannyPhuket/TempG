@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Seller</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h1>Dashboard Seller</h1>
+
+<div id="alerts"></div>
+<div id="data-table"></div>
+
+<canvas id="tempChart" width="400" height="150"></canvas>
+
+<audio id="siren" src="siren.mp3" loop></audio>
+<button onclick="toggleSiren()">Mute / Unmute</button>
+
+<script type="module">
+import { db, collection, query, orderBy, onSnapshot } from './firebase-config.js';
+
+const table = document.getElementById('data-table');
+const alerts = document.getElementById('alerts');
+const siren = document.getElementById('siren');
+let sirenOn = false;
+
+// Threshold (Seller สามารถปรับได้)
+let tempThreshold = 30;
+
+// สร้าง Chart
+const ctx = document.getElementById('tempChart').getContext('2d');
+const tempChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Temperature', data: [], borderColor: 'red', fill: false }] },
+    options: { responsive: true, scales: { x: { display: true }, y: { display: true, suggestedMin: 0, suggestedMax: 50 } } }
+});
+
+function toggleSiren() {
+  sirenOn = !sirenOn;
+  if(!sirenOn) siren.pause();
+  else siren.play();
+}
+
+// Realtime listener
+const q = query(collection(db, 'devices'), orderBy('timestamp', 'desc'));
+onSnapshot(q, (snapshot) => {
+  table.innerHTML = '';
+  let alertExists = false;
+
+  const labels = [];
+  const data = [];
+
+  snapshot.docs.slice(0, 10).forEach(doc => { // แสดง 10 ล่าสุด
+    const d = doc.data();
+    const div = document.createElement('div');
+    div.textContent = `Name: ${d.name}, Temp: ${d.temp}°C, Humidity: ${d.humidity}%`;
+    if(d.temp > tempThreshold) {
+      div.style.color = 'red';
+      alertExists = true;
+    }
+    table.appendChild(div);
+
+    labels.push(new Date(d.timestamp.seconds*1000).toLocaleTimeString());
+    data.push(d.temp);
+  });
+
+  // Update chart
+  tempChart.data.labels = labels.reverse();
+  tempChart.data.datasets[0].data = data.reverse();
+  tempChart.update();
+
+  // Alert
+  if(alertExists) {
+    alerts.textContent = 'Temperature Alert!';
+    if(!sirenOn) siren.play();
+  } else {
+    alerts.textContent = '';
+    siren.pause();
+  }
+});
+</script>
+</body>
+</html>
