@@ -53,8 +53,9 @@
 <script type="module">
 import { db } from './js/firebase-config.js';
 import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
-import { generateHistory, addRealtimeData } from './generate_history.js';
+import { generateHistory, addRealtimeData } from './js/generate_history.js';
 
+// Elements
 const tempEl = document.getElementById('temperature');
 const humEl = document.getElementById('humidity');
 const gpsEl = document.getElementById('gps');
@@ -66,50 +67,57 @@ const map = L.map('map').setView([7.890,98.3817],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 const marker = L.marker([7.890,98.3817]).addTo(map);
 
-// Generate History 14 วัน
+// ------------------ สร้าง History ------------------
 await generateHistory();
 
-// Realtime Data
-onValue(ref(db,'Data'), snapshot=>{
-  const data = snapshot.val(); if(!data) return;
-  tempEl.textContent = `${data.Temperature ?? '--'} °C`;
-  humEl.textContent = `${data.Humidity ?? '--'} %`;
-  gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
-  if(data.GPS){ marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
-});
+// ------------------ Realtime Data ------------------
+async function refreshRealtime(){
+  await addRealtimeData('Driver'); // เพิ่มข้อมูลทุก 5 นาที
+}
+setInterval(refreshRealtime, 5*60*1000);
+refreshRealtime();
 
-// Load History
+// ------------------ Load History ------------------
 function loadHistory(){
-  onValue(ref(db,'History'), snapshot=>{
-    const allData = snapshot.val(); if(!allData) return;
+  const histRef = ref(db,'History');
+  onValue(histRef, snapshot=>{
+    const allData = snapshot.val();
+    if(!allData) return;
     const sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0]));
     renderHistory(sorted,1);
   });
 }
 
-// Render Table
+// ------------------ Render History Table ------------------
 function renderHistory(data,page){
-  const perPage=10;
-  const start=(page-1)*perPage; const end=Math.min(start+perPage,data.length);
+  const perPage = 10;
+  const start = (page-1)*perPage;
+  const end = Math.min(start+perPage,data.length);
   historyBody.innerHTML='';
   for(let i=start;i<end;i++){
     const d=data[i];
     const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
-    const tempClass=d[1].Temperature>8?'text-red-600 font-bold':'';
-    historyBody.innerHTML+=`<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
+    const tempColor = d[1].Temperature>8?'text-red-600':'text-green-700';
+    historyBody.innerHTML += `<tr class="border-b">
+      <td class="p-2">${dt}</td>
+      <td class="p-2 ${tempColor} font-bold">${d[1].Temperature}</td>
+      <td class="p-2">${d[1].Humidity}</td>
+    </tr>`;
   }
-  const totalPages=Math.min(Math.ceil(data.length/perPage),10);
+
+  // Pagination
+  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
   pagination.innerHTML='';
   for(let i=1;i<=totalPages;i++){
-    const btn=document.createElement('button'); btn.textContent=i;
+    const btn=document.createElement('button');
+    btn.textContent=i;
     btn.className=`px-3 py-1 rounded-lg ${i===page?'bg-green-600 text-white':'bg-gray-200 hover:bg-green-100'}`;
-    btn.onclick=()=>renderHistory(data,i); pagination.appendChild(btn);
+    btn.onclick=()=>renderHistory(data,i);
+    pagination.appendChild(btn);
   }
 }
-loadHistory();
 
-// เพิ่ม Realtime ทุก 5 นาที
-setInterval(()=>addRealtimeData('Driver'),5*60*1000);
+loadHistory();
 </script>
 </body>
 </html>
