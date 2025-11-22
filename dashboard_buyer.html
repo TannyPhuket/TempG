@@ -34,14 +34,7 @@
   <div id="map" class="mb-6"></div>
 
   <!-- History Table -->
-  <div class="flex justify-between items-center mb-2">
-    <h2 class="text-2xl font-semibold text-gray-700">📊 บันทึกย้อนหลัง (14 วัน)</h2>
-    <select id="viewMode" class="border p-2 rounded">
-      <option value="day">รายวัน</option>
-      <option value="week">รายสัปดาห์</option>
-      <option value="month">รายเดือน</option>
-    </select>
-  </div>
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📊 บันทึกย้อนหลัง (14 วัน)</h2>
   <table class="w-full bg-white rounded shadow mb-6">
     <thead class="bg-purple-100">
       <tr>
@@ -55,109 +48,68 @@
 
   <!-- Pagination -->
   <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
-
 </div>
 
 <script type="module">
 import { db } from './js/firebase-config.js';
-import { ref, onValue, get } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { generateHistory, addRealtimeData } from './generate_history.js';
 
-// Elements
 const tempEl = document.getElementById('temperature');
 const humEl = document.getElementById('humidity');
 const gpsEl = document.getElementById('gps');
 const historyBody = document.getElementById('historyBody');
 const pagination = document.getElementById('pagination');
-const viewModeSelect = document.getElementById('viewMode');
 
 // Map
 const map = L.map('map').setView([7.890,98.3817],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 const marker = L.marker([7.890,98.3817]).addTo(map);
 
-// ------------------ Realtime Data ------------------
+// Generate History 14 วัน
+await generateHistory();
+
+// Realtime Data
 onValue(ref(db,'Data'), snapshot=>{
-  const data = snapshot.val();
-  if(!data) return;
+  const data = snapshot.val(); if(!data) return;
   tempEl.textContent = `${data.Temperature ?? '--'} °C`;
   humEl.textContent = `${data.Humidity ?? '--'} %`;
   gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
   if(data.GPS){ marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
 });
 
-// ------------------ Load History ------------------
+// Load History
 function loadHistory(){
-  const histRef = ref(db,'History');
-  onValue(histRef, snapshot=>{
-    const allData = snapshot.val();
-    if(!allData) return;
-    let sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0]));
-
-    // Group by viewMode
-    const mode = viewModeSelect.value;
-    if(mode==='week'){
-      const grouped = {};
-      sorted.forEach(([ts,val])=>{
-        const d = new Date(parseInt(ts));
-        const week = `${d.getFullYear()}-W${Math.ceil(d.getDate()/7)}`;
-        if(!grouped[week]) grouped[week]=[];
-        grouped[week].push(val);
-      });
-      sorted = Object.entries(grouped).map(([k,v])=>{
-        const avgTemp = (v.reduce((sum,x)=>sum+x.Temperature,0)/v.length).toFixed(1);
-        const avgHum = (v.reduce((sum,x)=>sum+x.Humidity,0)/v.length).toFixed(1);
-        return [k,{Temperature:avgTemp,Humidity:avgHum}];
-      });
-    } else if(mode==='month'){
-      const grouped = {};
-      sorted.forEach(([ts,val])=>{
-        const d = new Date(parseInt(ts));
-        const m = `${d.getFullYear()}-${d.getMonth()+1}`;
-        if(!grouped[m]) grouped[m]=[];
-        grouped[m].push(val);
-      });
-      sorted = Object.entries(grouped).map(([k,v])=>{
-        const avgTemp = (v.reduce((sum,x)=>sum+x.Temperature,0)/v.length).toFixed(1);
-        const avgHum = (v.reduce((sum,x)=>sum+x.Humidity,0)/v.length).toFixed(1);
-        return [k,{Temperature:avgTemp,Humidity:avgHum}];
-      });
-    }
-
+  onValue(ref(db,'History'), snapshot=>{
+    const allData = snapshot.val(); if(!allData) return;
+    const sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0]));
     renderHistory(sorted,1);
   });
 }
-viewModeSelect.onchange = loadHistory;
 
-// ------------------ Render History Table ------------------
+// Render Table
 function renderHistory(data,page){
-  const perPage = 10;
-  const start = (page-1)*perPage;
-  const end = Math.min(start+perPage,data.length);
+  const perPage=10;
+  const start=(page-1)*perPage; const end=Math.min(start+perPage,data.length);
   historyBody.innerHTML='';
   for(let i=start;i<end;i++){
     const d=data[i];
-    let dt = d[0];
-    // แปลง timestamp เป็นวันที่ถ้าเป็น daily mode
-    if(!isNaN(parseInt(d[0]))){
-      dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
-    }
-    const tempClass = d[1].Temperature>8 ? 'text-red-600 font-bold' : '';
-    historyBody.innerHTML += `<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
+    const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
+    const tempClass=d[1].Temperature>8?'text-red-600 font-bold':'';
+    historyBody.innerHTML+=`<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
   }
-
-  // Pagination
-  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
+  const totalPages=Math.min(Math.ceil(data.length/perPage),10);
   pagination.innerHTML='';
   for(let i=1;i<=totalPages;i++){
-    const btn=document.createElement('button');
-    btn.textContent=i;
+    const btn=document.createElement('button'); btn.textContent=i;
     btn.className=`px-3 py-1 rounded-lg ${i===page?'bg-purple-600 text-white':'bg-gray-200 hover:bg-purple-100'}`;
-    btn.onclick=()=>renderHistory(data,i);
-    pagination.appendChild(btn);
+    btn.onclick=()=>renderHistory(data,i); pagination.appendChild(btn);
   }
 }
-
 loadHistory();
+
+// เพิ่ม Realtime ทุก 5 นาที
+setInterval(()=>addRealtimeData('Buyer'),5*60*1000);
 </script>
 </body>
 </html>
