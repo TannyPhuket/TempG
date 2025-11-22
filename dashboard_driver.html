@@ -34,7 +34,7 @@
   <div id="map" class="mb-6"></div>
 
   <!-- History Table -->
-  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📊 บันทึกย้อนหลัง (7 วัน)</h2>
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📊 บันทึกย้อนหลัง (14 วัน)</h2>
   <table class="w-full bg-white rounded shadow mb-6">
     <thead class="bg-green-100">
       <tr>
@@ -48,14 +48,13 @@
 
   <!-- Pagination -->
   <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
-
 </div>
 
 <script type="module">
 import { db } from './js/firebase-config.js';
-import { ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { ref, onValue } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { generateHistory, addRealtimeData } from './generate_history.js';
 
-// Elements
 const tempEl = document.getElementById('temperature');
 const humEl = document.getElementById('humidity');
 const gpsEl = document.getElementById('gps');
@@ -67,82 +66,50 @@ const map = L.map('map').setView([7.890,98.3817],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 const marker = L.marker([7.890,98.3817]).addTo(map);
 
-// ------------------ สร้าง History 7 วันแบบสุ่ม ------------------
-async function generateHistory() {
-  const histRef = ref(db,'History');
-  const snapshot = await get(histRef);
-  if(snapshot.exists()) return; // มีแล้วไม่สร้างซ้ำ
+// Generate History 14 วัน
+await generateHistory();
 
-  const updates = {};
-  const interval = 5*60*1000; // 5 นาที
-  const now = Date.now();
-  const startTime = now - 7*24*60*60*1000;
-
-  function randomTemp(){ 
-    const base = parseFloat((Math.random()*6+2).toFixed(1)); // 2-8°C
-    if(Math.random()<0.05) return parseFloat((Math.random()*3+8.1).toFixed(1)); // chance เกิน 8°C
-    return base;
-  }
-  function randomHum(){ return parseFloat((Math.random()*10+70).toFixed(1)); } // 70-80%
-
-  let time=startTime;
-  while(time<=now){
-    const temp = randomTemp();
-    updates[time] = { Temperature: temp, Humidity: randomHum(), GPS:{lat:7.890,lng:98.3817} };
-    time+=interval;
-  }
-  await set(histRef, updates);
-  console.log('สร้าง History 7 วันเรียบร้อย');
-}
-generateHistory();
-
-// ------------------ Realtime Data ------------------
+// Realtime Data
 onValue(ref(db,'Data'), snapshot=>{
-  const data = snapshot.val();
-  if(!data) return;
+  const data = snapshot.val(); if(!data) return;
   tempEl.textContent = `${data.Temperature ?? '--'} °C`;
   humEl.textContent = `${data.Humidity ?? '--'} %`;
   gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
   if(data.GPS){ marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
 });
 
-// ------------------ Load History ------------------
+// Load History
 function loadHistory(){
-  const histRef = ref(db,'History');
-  onValue(histRef, snapshot=>{
-    const allData = snapshot.val();
-    if(!allData) return;
+  onValue(ref(db,'History'), snapshot=>{
+    const allData = snapshot.val(); if(!allData) return;
     const sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0]));
     renderHistory(sorted,1);
   });
 }
 
-// ------------------ Render History Table ------------------
+// Render Table
 function renderHistory(data,page){
-  const perPage = 10;
-  const start = (page-1)*perPage;
-  const end = Math.min(start+perPage,data.length);
+  const perPage=10;
+  const start=(page-1)*perPage; const end=Math.min(start+perPage,data.length);
   historyBody.innerHTML='';
   for(let i=start;i<end;i++){
     const d=data[i];
     const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
-    const tempClass = d[1].Temperature>8 ? 'text-red-600 font-bold' : '';
-    historyBody.innerHTML += `<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
+    const tempClass=d[1].Temperature>8?'text-red-600 font-bold':'';
+    historyBody.innerHTML+=`<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
   }
-
-  // Pagination
-  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
+  const totalPages=Math.min(Math.ceil(data.length/perPage),10);
   pagination.innerHTML='';
   for(let i=1;i<=totalPages;i++){
-    const btn=document.createElement('button');
-    btn.textContent=i;
+    const btn=document.createElement('button'); btn.textContent=i;
     btn.className=`px-3 py-1 rounded-lg ${i===page?'bg-green-600 text-white':'bg-gray-200 hover:bg-green-100'}`;
-    btn.onclick=()=>renderHistory(data,i);
-    pagination.appendChild(btn);
+    btn.onclick=()=>renderHistory(data,i); pagination.appendChild(btn);
   }
 }
-
 loadHistory();
+
+// เพิ่ม Realtime ทุก 5 นาที
+setInterval(()=>addRealtimeData('Driver'),5*60*1000);
 </script>
 </body>
 </html>
