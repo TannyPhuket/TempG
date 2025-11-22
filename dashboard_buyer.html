@@ -7,16 +7,11 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-#map { height: 300px; border-radius: 1rem; }
-</style>
+<style>#map{height:300px;border-radius:1rem;}</style>
 </head>
-
 <body class="bg-purple-50 font-sans p-6">
 
-<div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
+<div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
   <h1 class="text-3xl font-bold text-purple-700 mb-4">🛒 Smart Cold Guard - Buyer</h1>
 
   <!-- Realtime Data -->
@@ -32,122 +27,110 @@
     <div class="bg-purple-50 rounded-2xl p-4 text-center shadow">
       <h2 class="text-lg font-semibold text-gray-600">ตำแหน่งล่าสุด</h2>
       <p id="gps" class="text-lg font-medium text-purple-700 mt-2">--</p>
-      <p id="locationName" class="text-sm text-gray-500"></p>
     </div>
   </div>
 
   <!-- Map -->
   <div id="map" class="mb-6"></div>
 
-  <!-- Chart -->
-  <h2 class="text-2xl font-semibold text-gray-700 mb-3">📈 กราฟย้อนหลัง (14 วัน)</h2>
-  <canvas id="tempChart" class="w-full mb-6"></canvas>
+  <!-- History Table -->
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📋 บันทึกย้อนหลัง 30 วัน</h2>
+  <table class="w-full table-auto border-collapse border border-gray-300 mb-4">
+    <thead class="bg-purple-100">
+      <tr>
+        <th class="border border-gray-300 px-3 py-2 text-left">ลำดับ</th>
+        <th class="border border-gray-300 px-3 py-2 text-left">วันที่ / เวลา</th>
+        <th class="border border-gray-300 px-3 py-2 text-left">อุณหภูมิ (°C)</th>
+        <th class="border border-gray-300 px-3 py-2 text-left">ความชื้น (%)</th>
+      </tr>
+    </thead>
+    <tbody id="historyTable"></tbody>
+  </table>
 
   <!-- Pagination -->
-  <div id="pagination" class="flex justify-center space-x-2"></div>
+  <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
 </div>
 
 <script type="module">
 import { db } from './js/firebase-config.js';
-import { ref, onValue, query, orderByKey, limitToLast } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+import { ref, onValue, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
 
-// UI Elements
-const tempEl = document.getElementById("temperature");
-const humEl = document.getElementById("humidity");
-const gpsEl = document.getElementById("gps");
-const locationNameEl = document.getElementById("locationName");
+const tempEl = document.getElementById('temperature');
+const humEl = document.getElementById('humidity');
+const gpsEl = document.getElementById('gps');
+const historyTable = document.getElementById('historyTable');
+const pagination = document.getElementById('pagination');
 
 // Map
-const map = L.map('map').setView([8.0402, 98.333], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom: 19
-}).addTo(map);
+const map = L.map('map').setView([8.001, 98.311], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const marker = L.marker([8.001,98.311]).addTo(map);
 
-const marker = L.marker([8.0402, 98.333]).addTo(map);
-
-// Realtime Firebase Data
-onValue(ref(db, "Data"), snapshot => {
+// Realtime Data
+onValue(ref(db,'Data'), snapshot => {
   const data = snapshot.val();
-  if (!data) return;
-
+  if(!data) return;
   tempEl.textContent = `${data.Temperature ?? '--'} °C`;
   humEl.textContent = `${data.Humidity ?? '--'} %`;
-
-  if (data.GPS?.lat && data.GPS?.lng) {
-    gpsEl.textContent = `${data.GPS.lat}, ${data.GPS.lng}`;
-    marker.setLatLng([data.GPS.lat, data.GPS.lng]);
-    map.setView([data.GPS.lat, data.GPS.lng], 13);
-
-    // Static area info
-    locationNameEl.textContent = "📍 อำเภอถลาง จังหวัดภูเก็ต";
-  }
+  gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
+  if(data.GPS) { marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
 });
 
-// Chart Setup
-const ctx = document.getElementById("tempChart").getContext("2d");
-const tempChart = new Chart(ctx, {
-  type: "line",
-  data: {
-    labels: [],
-    datasets: [{
-      label: "อุณหภูมิ (°C)",
-      data: [],
-      borderWidth: 2,
-      tension: 0.3
-    }]
-  },
-  options: { responsive: true }
-});
-
-// Load History 14 Days
-function loadHistory(days = 14) {
+// Load History 30 วัน
+let allHistory = [];
+function loadHistory(days=30){
   const now = Date.now();
-  const limitTime = now - days * 24 * 60 * 60 * 1000;
-
-  const q = query(ref(db, "History"), orderByKey(), limitToLast(2000));
-
-  onValue(q, snapshot => {
-    const all = snapshot.val();
-    if (!all) return;
-
-    const filtered = Object.entries(all)
-      .filter(([ts]) => parseInt(ts) >= limitTime)
-      .map(([ts, v]) => ({
-        date: new Date(parseInt(ts)).toLocaleString("th-TH", { hour12: false }),
-        temp: v.Temperature
-      }));
-
-    renderChart(filtered, 1);
-    renderPagination(filtered);
+  const limitTime = now - days*24*60*60*1000;
+  const q = query(ref(db,'History'),orderByKey(),limitToLast(1000));
+  onValue(q,snapshot=>{
+    const data = snapshot.val();
+    if(!data) return;
+    allHistory = Object.entries(data)
+      .filter(([ts]) => parseInt(ts)>=limitTime)
+      .map(([ts,val], idx) => ({
+        id: idx+1,
+        date: new Date(parseInt(ts)).toLocaleString('th-TH',{hour12:false}),
+        temp: val.Temperature,
+        hum: val.Humidity
+      }))
+      .sort((a,b)=>b.id - a.id);
+    renderTable(1);
+    renderPagination();
   });
 }
 
-function renderChart(data, page) {
+function renderTable(page){
   const perPage = 10;
-  const sliced = data.slice((page - 1) * perPage, page * perPage);
-
-  tempChart.data.labels = sliced.map(d => d.date);
-  tempChart.data.datasets[0].data = sliced.map(d => d.temp);
-  tempChart.update();
+  const start = (page-1)*perPage;
+  const end = Math.min(start+perPage,allHistory.length);
+  const slice = allHistory.slice(start,end);
+  historyTable.innerHTML = '';
+  slice.forEach(item=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="border px-3 py-2">${item.id}</td>
+      <td class="border px-3 py-2">${item.date}</td>
+      <td class="border px-3 py-2">${item.temp}</td>
+      <td class="border px-3 py-2">${item.hum}</td>
+    `;
+    historyTable.appendChild(tr);
+  });
 }
 
-function renderPagination(data) {
+function renderPagination(){
   const perPage = 10;
-  const pages = Math.ceil(data.length / perPage);
-
-  const container = document.getElementById("pagination");
-  container.innerHTML = "";
-
-  for (let i = 1; i <= pages; i++) {
-    const btn = document.createElement("button");
+  const totalPages = Math.ceil(allHistory.length/perPage);
+  pagination.innerHTML='';
+  for(let i=1;i<=totalPages;i++){
+    const btn = document.createElement('button');
     btn.textContent = i;
-    btn.className = "px-3 py-1 rounded border bg-gray-200 hover:bg-purple-200";
-    btn.onclick = () => renderChart(data, i);
-    container.appendChild(btn);
+    btn.className=`px-3 py-1 rounded-lg ${i===1?'bg-purple-600 text-white':'bg-gray-200 hover:bg-purple-100'}`;
+    btn.onclick = ()=>renderTable(i);
+    pagination.appendChild(btn);
   }
 }
 
-loadHistory(14);
+loadHistory(30);
 </script>
 
 </body>
