@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/TempG/', // ชื่อ repository ของคุณ
+  base: '/TempG/', // ชื่อ repo ของคุณ
 });
