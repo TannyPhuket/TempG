@@ -1,5 +1,5 @@
 // generate_history.js
-import { db } from './firebase-config.js';
+import { db } from './js/firebase-config.js';
 import { ref, set, get } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
 
 // สร้าง History 14 วันย้อนหลัง
@@ -20,7 +20,6 @@ export async function generateHistory() {
 
     while(time <= dayEnd.getTime()){
       let temp = parseFloat((Math.random()*6+2).toFixed(1)); // 2-8°C
-      // บังคับให้เกิน 8°C 3-5 ครั้งต่อวัน
       if(overTempCount<3 && Math.random()<0.1){ 
         temp = parseFloat((8 + Math.random()*2).toFixed(1)); 
         overTempCount++; 
