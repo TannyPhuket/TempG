@@ -12,7 +12,7 @@
 <body class="bg-green-50 font-sans p-6">
 
 <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
-  <h1 class="text-3xl font-bold text-green-700 mb-4">🚚 Smart Cold Guard - Driver</h1>
+  <h1 class="text-3xl font-bold text-green-700 mb-2">🚛 Smart Cold Guard - Driver</h1>
 
   <!-- Realtime Data -->
   <div class="grid md:grid-cols-3 gap-4 mb-6">
@@ -34,104 +34,108 @@
   <div id="map" class="mb-6"></div>
 
   <!-- History Table -->
-  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📋 บันทึกย้อนหลัง 7 วัน</h2>
-  <table class="w-full table-auto border-collapse border border-gray-300 mb-4">
+  <h2 class="text-2xl font-semibold text-gray-700 mb-4">📊 บันทึกย้อนหลัง (7 วัน)</h2>
+  <table class="w-full bg-white rounded shadow mb-6">
     <thead class="bg-green-100">
       <tr>
-        <th class="border border-gray-300 px-3 py-2 text-left">ลำดับ</th>
-        <th class="border border-gray-300 px-3 py-2 text-left">วันที่ / เวลา</th>
-        <th class="border border-gray-300 px-3 py-2 text-left">อุณหภูมิ (°C)</th>
-        <th class="border border-gray-300 px-3 py-2 text-left">ความชื้น (%)</th>
+        <th class="p-2">วันที่ / เวลา</th>
+        <th class="p-2">อุณหภูมิ (°C)</th>
+        <th class="p-2">ความชื้น (%)</th>
       </tr>
     </thead>
-    <tbody id="historyTable"></tbody>
+    <tbody id="historyBody"></tbody>
   </table>
 
   <!-- Pagination -->
   <div id="pagination" class="flex justify-center space-x-2 mb-6"></div>
+
 </div>
 
 <script type="module">
 import { db } from './js/firebase-config.js';
-import { ref, onValue, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
 
+// Elements
 const tempEl = document.getElementById('temperature');
 const humEl = document.getElementById('humidity');
 const gpsEl = document.getElementById('gps');
-const historyTable = document.getElementById('historyTable');
+const historyBody = document.getElementById('historyBody');
 const pagination = document.getElementById('pagination');
 
 // Map
-const map = L.map('map').setView([8.001, 98.311], 12);
+const map = L.map('map').setView([7.890,98.3817],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-const marker = L.marker([8.001,98.311]).addTo(map);
+const marker = L.marker([7.890,98.3817]).addTo(map);
 
-// Realtime Data
-onValue(ref(db,'Data'), snapshot => {
+// ------------------ สร้าง History 7 วันแบบสุ่ม ------------------
+async function generateHistory() {
+  const histRef = ref(db,'History');
+  const snapshot = await get(histRef);
+  if(snapshot.exists()) return; // มีแล้วไม่สร้างซ้ำ
+
+  const updates = {};
+  const interval = 5*60*1000; // 5 นาที
+  const now = Date.now();
+  const startTime = now - 7*24*60*60*1000;
+  function randomTemp(){ return parseFloat((Math.random()*6+2).toFixed(1)); } // 2-8°C
+  function randomHum(){ return parseFloat((Math.random()*10+70).toFixed(1)); } // 70-80%
+
+  let time=startTime;
+  while(time<=now){
+    updates[time] = { Temperature: randomTemp(), Humidity: randomHum(), GPS:{lat:7.890,lng:98.3817} };
+    time+=interval;
+  }
+  await set(histRef, updates);
+  console.log('สร้าง History 7 วันเรียบร้อย');
+}
+generateHistory();
+
+// ------------------ Realtime Data ------------------
+onValue(ref(db,'Data'), snapshot=>{
   const data = snapshot.val();
   if(!data) return;
   tempEl.textContent = `${data.Temperature ?? '--'} °C`;
   humEl.textContent = `${data.Humidity ?? '--'} %`;
   gpsEl.textContent = `${data.GPS?.lat ?? '--'}, ${data.GPS?.lng ?? '--'}`;
-  if(data.GPS) { marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
+  if(data.GPS){ marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
 });
 
-// Load History 7 วัน
-let allHistory = [];
-function loadHistory(days=7){
-  const now = Date.now();
-  const limitTime = now - days*24*60*60*1000;
-  const q = query(ref(db,'History'),orderByKey(),limitToLast(1000));
-  onValue(q,snapshot=>{
-    const data = snapshot.val();
-    if(!data) return;
-    allHistory = Object.entries(data)
-      .filter(([ts]) => parseInt(ts)>=limitTime)
-      .map(([ts,val], idx) => ({
-        id: idx+1,
-        date: new Date(parseInt(ts)).toLocaleString('th-TH',{hour12:false}),
-        temp: val.Temperature,
-        hum: val.Humidity
-      }))
-      .sort((a,b)=>b.id - a.id); // ล่าสุดก่อน
-    renderTable(1);
-    renderPagination();
+// ------------------ Load History ------------------
+function loadHistory(){
+  const histRef = ref(db,'History');
+  onValue(histRef, snapshot=>{
+    const allData = snapshot.val();
+    if(!allData) return;
+    const sorted = Object.entries(allData).sort((a,b)=>parseInt(b[0])-parseInt(a[0]));
+    renderHistory(sorted,1);
   });
 }
 
-function renderTable(page){
+// ------------------ Render History Table ------------------
+function renderHistory(data,page){
   const perPage = 10;
   const start = (page-1)*perPage;
-  const end = Math.min(start+perPage,allHistory.length);
-  const slice = allHistory.slice(start,end);
-  historyTable.innerHTML = '';
-  slice.forEach(item=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="border px-3 py-2">${item.id}</td>
-      <td class="border px-3 py-2">${item.date}</td>
-      <td class="border px-3 py-2">${item.temp}</td>
-      <td class="border px-3 py-2">${item.hum}</td>
-    `;
-    historyTable.appendChild(tr);
-  });
-}
+  const end = Math.min(start+perPage,data.length);
+  historyBody.innerHTML='';
+  for(let i=start;i<end;i++){
+    const d=data[i];
+    const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
+    historyBody.innerHTML += `<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
+  }
 
-function renderPagination(){
-  const perPage = 10;
-  const totalPages = Math.ceil(allHistory.length/perPage);
+  // Pagination
+  const totalPages = Math.min(Math.ceil(data.length/perPage),10);
   pagination.innerHTML='';
   for(let i=1;i<=totalPages;i++){
-    const btn = document.createElement('button');
-    btn.textContent = i;
-    btn.className=`px-3 py-1 rounded-lg ${i===1?'bg-green-600 text-white':'bg-gray-200 hover:bg-green-100'}`;
-    btn.onclick = ()=>renderTable(i);
+    const btn=document.createElement('button');
+    btn.textContent=i;
+    btn.className=`px-3 py-1 rounded-lg ${i===page?'bg-green-600 text-white':'bg-gray-200 hover:bg-green-100'}`;
+    btn.onclick=()=>renderHistory(data,i);
     pagination.appendChild(btn);
   }
 }
 
-loadHistory(7);
+loadHistory();
 </script>
-
 </body>
 </html>
