@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Generate 14 Days History</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-6">
+
+  <h1 class="text-2xl font-bold mb-4">Generate 14 Days History</h1>
+
+  <button id="genBtn"
+    class="bg-blue-600 text-white px-4 py-2 rounded">
+    Generate 14 Days History
+  </button>
+
+  <p id="status" class="mt-4 font-semibold"></p>
+
+  <script type="module">
+    import { db } from "./firebase-config.js";
+    import { ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    document.getElementById("genBtn").onclick = async () => {
+      document.getElementById("status").textContent = "กำลังสร้างข้อมูลย้อนหลัง...";
+
+      const HISTORY_REF = ref(db, "History");
+      const now = Date.now();
+
+      // 14 วันย้อนหลัง
+      const DAYS = 14;
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+
+      for (let i = 0; i < DAYS * 3; i++) {  
+        // เก็บทุก 8 ชั่วโมง → 3 record / day
+        const timestamp = now - (i * 8 * 60 * 60 * 1000);
+
+        // สุ่มอุณหภูมิ 2–8 องศา
+        const temp = (Math.random() * 6 + 2).toFixed(1);
+        const hum = (Math.random() * 20 + 60).toFixed(1);
+
+        await set(ref(db, `History/${timestamp}`), {
+          Temperature: Number(temp),
+          Humidity: Number(hum),
+          Location: "อำเภอถลาง จังหวัดภูเก็ต"
+        });
+      }
+
+      document.getElementById("status").textContent =
+        "สร้างข้อมูลย้อนหลัง 14 วัน เรียบร้อยแล้ว!";
+    };
+  </script>
+</body>
+</html>
