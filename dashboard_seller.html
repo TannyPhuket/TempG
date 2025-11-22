@@ -1,3 +1,4 @@
+<!-- dashboard_seller.html -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -13,7 +14,6 @@
 <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-8">
 <h1 class="text-3xl font-bold text-blue-700 mb-2">❄️ Smart Cold Guard - Seller</h1>
 
-<!-- Realtime Data -->
 <div class="grid md:grid-cols-3 gap-4 mb-6">
   <div class="bg-blue-50 rounded-2xl p-4 text-center shadow">
     <h2 class="text-lg font-semibold text-gray-600">อุณหภูมิปัจจุบัน</h2>
@@ -29,18 +29,12 @@
   </div>
 </div>
 
-<!-- Map -->
 <div id="map" class="mb-6"></div>
 
-<!-- History Table -->
 <h2 class="text-2xl font-semibold text-gray-700 mb-4">📊 บันทึกย้อนหลัง (14 วัน)</h2>
 <table class="w-full bg-white rounded shadow mb-6">
   <thead class="bg-blue-100">
-    <tr>
-      <th class="p-2">วันที่ / เวลา</th>
-      <th class="p-2">อุณหภูมิ (°C)</th>
-      <th class="p-2">ความชื้น (%)</th>
-    </tr>
+    <tr><th class="p-2">วันที่ / เวลา</th><th class="p-2">อุณหภูมิ (°C)</th><th class="p-2">ความชื้น (%)</th></tr>
   </thead>
   <tbody id="historyBody"></tbody>
 </table>
@@ -63,7 +57,7 @@ const map = L.map('map').setView([7.890,98.3817],12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 const marker = L.marker([7.890,98.3817]).addTo(map);
 
-await generateHistory(); // สร้าง History ถ้ายังไม่มี
+await generateHistory();
 
 // Realtime
 onValue(ref(db,'Data'), snapshot=>{
@@ -74,7 +68,7 @@ onValue(ref(db,'Data'), snapshot=>{
   if(data.GPS){ marker.setLatLng([data.GPS.lat,data.GPS.lng]); map.setView([data.GPS.lat,data.GPS.lng]); }
 });
 
-// Load & Render History
+// History
 function loadHistory(){
   onValue(ref(db,'History'), snapshot=>{
     const allData = snapshot.val(); if(!allData) return;
@@ -88,24 +82,19 @@ function renderHistory(data,page){
   historyBody.innerHTML='';
   for(let i=start;i<end;i++){
     const d=data[i];
-    const dt=new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
+    const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
     const tempClass=d[1].Temperature>8?'text-red-600 font-bold':'';
     historyBody.innerHTML+=`<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
   }
-  // Pagination
   const totalPages=Math.min(Math.ceil(data.length/perPage),10);
   pagination.innerHTML='';
   for(let i=1;i<=totalPages;i++){
-    const btn=document.createElement('button');
-    btn.textContent=i;
+    const btn=document.createElement('button'); btn.textContent=i;
     btn.className=`px-3 py-1 rounded-lg ${i===page?'bg-blue-600 text-white':'bg-gray-200 hover:bg-blue-100'}`;
-    btn.onclick=()=>renderHistory(data,i);
-    pagination.appendChild(btn);
+    btn.onclick=()=>renderHistory(data,i); pagination.appendChild(btn);
   }
 }
 loadHistory();
-
-// เพิ่ม Realtime ทุก 5 นาที
 setInterval(()=>addRealtimeData('Seller'),5*60*1000);
 </script>
 </body>
