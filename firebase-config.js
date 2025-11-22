@@ -2,7 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-// Config ของ Firebase (จากคุณ)
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
   authDomain: "temperature-cold-guard.firebaseapp.com",
@@ -16,5 +16,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Export สำหรับใช้งานบนทุกหน้า
 export { db, collection, query, orderBy, onSnapshot };
