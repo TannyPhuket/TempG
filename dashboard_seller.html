@@ -7,7 +7,6 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>#map{height:300px;border-radius:1rem;}</style>
 </head>
 <body class="bg-blue-50 font-sans p-6">
@@ -62,7 +61,7 @@
 
 <script type="module">
 import { db } from './js/firebase-config.js';
-import { ref, onValue, set, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
+import { ref, onValue, get, set } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js';
 
 // Elements
 const tempEl = document.getElementById('temperature');
@@ -86,12 +85,19 @@ async function generateHistory() {
   const interval = 5*60*1000; // 5 นาที
   const now = Date.now();
   const startTime = now - 14*24*60*60*1000;
-  function randomTemp(){ return parseFloat((Math.random()*6+2).toFixed(1)); } // 2-8°C
+
+  function randomTemp(){ 
+    const base = parseFloat((Math.random()*6+2).toFixed(1)); // 2-8°C
+    // เพิ่ม chance เกิน 8°C 3-5 ครั้ง/วัน
+    if(Math.random()<0.05) return parseFloat((Math.random()*3+8.1).toFixed(1));
+    return base;
+  }
   function randomHum(){ return parseFloat((Math.random()*10+70).toFixed(1)); } // 70-80%
 
   let time=startTime;
   while(time<=now){
-    updates[time] = { Temperature: randomTemp(), Humidity: randomHum(), GPS:{lat:7.890,lng:98.3817} };
+    const temp = randomTemp();
+    updates[time] = { Temperature: temp, Humidity: randomHum(), GPS:{lat:7.890,lng:98.3817} };
     time+=interval;
   }
   await set(histRef, updates);
@@ -129,7 +135,8 @@ function renderHistory(data,page){
   for(let i=start;i<end;i++){
     const d=data[i];
     const dt = new Date(parseInt(d[0])).toLocaleString('th-TH',{hour12:false});
-    historyBody.innerHTML += `<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
+    const tempClass = d[1].Temperature>8 ? 'text-red-600 font-bold' : '';
+    historyBody.innerHTML += `<tr class="border-b"><td class="p-2">${dt}</td><td class="p-2 ${tempClass}">${d[1].Temperature}</td><td class="p-2">${d[1].Humidity}</td></tr>`;
   }
 
   // Pagination
