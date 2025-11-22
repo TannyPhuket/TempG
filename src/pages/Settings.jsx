@@ -1,6 +1,6 @@
 // src/pages/Settings.jsx
 import React, { useEffect, useState } from 'react';
-import { db, doc, getDoc, setDoc } from '../services/firebase';
+import { db, doc, getDoc, setDoc, onSnapshot } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
@@ -10,15 +10,15 @@ export default function Settings() {
 
   useEffect(() => {
     if (user?.role === 'seller') {
-      const fetchSettings = async () => {
-        const docRef = doc(db, 'settings', 'thresholds');
-        const docSnap = await getDoc(docRef);
+      const docRef = doc(db, 'settings', 'thresholds');
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           setTempThreshold(docSnap.data().tempThreshold);
         }
         setLoading(false);
-      };
-      fetchSettings();
+      });
+
+      return () => unsubscribe();
     } else {
       setLoading(false);
     }
@@ -26,11 +26,10 @@ export default function Settings() {
 
   const handleSave = async () => {
     await setDoc(doc(db, 'settings', 'thresholds'), { tempThreshold });
-    alert('Threshold saved successfully!');
+    alert('Threshold saved successfully! All dashboards updated in realtime.');
   };
 
   if (loading) return <div className="p-6">Loading...</div>;
-
   if (user?.role !== 'seller') return <div className="p-6">Access Denied</div>;
 
   return (
