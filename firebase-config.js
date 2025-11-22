@@ -2,16 +2,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
+// Config ของ Firebase (จากคุณ)
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
+  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+  authDomain: "temperature-cold-guard.firebaseapp.com",
+  projectId: "temperature-cold-guard",
+  storageBucket: "temperature-cold-guard",
+  messagingSenderId: "29693405672",
+  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Export สำหรับใช้งานบนทุกหน้า
 export { db, collection, query, orderBy, onSnapshot };
