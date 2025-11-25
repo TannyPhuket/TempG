@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<title>Buyer Dashboard</title>
+<title>Buyer Dashboard - Smart Cold Chain</title>
 <link rel="stylesheet" href="styles.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -17,6 +17,7 @@
   padding-top: 20px;
   display: flex;
   flex-direction: column;
+  z-index: 1000;
 }
 
 .sidebar a {
@@ -63,83 +64,9 @@
   border-radius: 12px;
   margin-top: 20px;
 }
-</style>
-</head>
 
-<body>
-<div class="sidebar">
-  <a href="#"><span class="icon">🏠</span> Dashboard</a>
-  <a href="#"><span class="icon">🌡️</span> Temperature</a>
-  <a href="#"><span class="icon">📍</span> GPS</a>
-  <a href="#"><span class="icon">⚙️</span> Settings</a>
-  <a href="login.html"><span class="icon">🔓</span> Logout</a>
-</div>
-
-<div class="main">
-  <h2 class="title">Buyer Dashboard</h2>
-
-  <div class="card">
-    <h3><span class="icon">🌡️</span> อุณหภูมิสินค้าปัจจุบัน</h3>
-    <div id="temp" class="value">--</div>
-  </div>
-
-  <div class="card">
-    <h3><span class="icon">📍</span> ตำแหน่งสินค้า</h3>
-    <div id="gps" class="value">-- , --</div>
-  </div>
-
-  <div class="chart-container">
-    <canvas id="chartTemp"></canvas>
-  </div>
-</div>
-
-<script type="module">
-import { db, ref, onValue } from "./firebase-config.js";
-
-const tempElem = document.getElementById("temp");
-const gpsElem  = document.getElementById("gps");
-
-const tempRef = ref(db, "Data/Temperature");
-const gpsRef  = ref(db, "Data/GPS");
-
-// แสดงค่าปัจจุบัน
-onValue(tempRef, s => { tempElem.textContent = s.val() + " °C"; updateChart(s.val()); });
-onValue(gpsRef, s => { gpsElem.textContent = s.val().lat + " , " + s.val().lng; });
-
-// Chart.js สำหรับ Temp Realtime
-const ctx = document.getElementById('chartTemp').getContext('2d');
-const chartData = {
-  labels: [],
-  datasets: [{
-    label: 'Temperature (°C)',
-    data: [],
-    borderColor: '#38bdf8',
-    backgroundColor: 'rgba(56, 189, 248,0.2)',
-    tension: 0.4
-  }]
-};
-
-const tempChart = new Chart(ctx, {
-  type: 'line',
-  data: chartData,
-  options: {
-    responsive: true,
-    scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } },
-    plugins: { legend: { labels: { color: 'white' } } }
-  }
-});
-
-function updateChart(temp) {
-  const now = new Date();
-  const timeLabel = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
-  chartData.labels.push(timeLabel);
-  chartData.datasets[0].data.push(temp);
-  if(chartData.labels.length > 20){
-    chartData.labels.shift();
-    chartData.datasets[0].data.shift();
-  }
-  tempChart.update();
-}
-</script>
-</body>
-</html>
+.value {
+  font-size: 36px;
+  font-weight: 700;
+  margin-top: 10px;
+  color: #a5f3fc;
