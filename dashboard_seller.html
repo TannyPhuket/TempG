@@ -4,25 +4,99 @@
 <meta charset="UTF-8" />
 <title>Seller Dashboard</title>
 <link rel="stylesheet" href="styles.css" />
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 100%;
+  background: #1e293b;
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar a {
+  color: white;
+  padding: 15px 20px;
+  text-decoration: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: 0.2s;
+}
+
+.sidebar a:hover {
+  background: #334155;
+  border-radius: 8px;
+}
+
+/* Main Content */
+.main {
+  margin-left: 240px;
+  padding: 20px;
+}
+
+.card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 14px;
+  margin-top: 20px;
+  box-shadow: 0 0 20px #0f172a;
+  transition: transform 0.2s;
+}
+.card:hover { transform: translateY(-3px); }
+
+.icon {
+  font-size: 22px;
+  color: #38bdf8;
+  margin-right: 10px;
+}
+
+/* Chart Container */
+.chart-container {
+  background: #1e293b;
+  padding: 15px;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+</style>
 </head>
 
 <body>
-<div class="container">
+<div class="sidebar">
+  <a href="#"><span class="icon">🏠</span> Dashboard</a>
+  <a href="#"><span class="icon">🌡️</span> Temp/Humidity</a>
+  <a href="#"><span class="icon">📍</span> GPS</a>
+  <a href="#"><span class="icon">⚙️</span> Settings</a>
+  <a href="login.html"><span class="icon">🔓</span> Logout</a>
+</div>
+
+<div class="main">
   <h2 class="title">Seller Dashboard</h2>
 
   <div class="card">
-    <h3>อุณหภูมิ</h3>
+    <h3><span class="icon">🌡️</span> อุณหภูมิ</h3>
     <div id="temp" class="value">--</div>
   </div>
 
   <div class="card">
-    <h3>ความชื้น</h3>
+    <h3><span class="icon">💧</span> ความชื้น</h3>
     <div id="hum" class="value">--</div>
   </div>
 
   <div class="card">
-    <h3>ตำแหน่ง GPS</h3>
+    <h3><span class="icon">📍</span> ตำแหน่ง GPS</h3>
     <div id="gps" class="value">-- , --</div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="chartTemp"></canvas>
   </div>
 </div>
 
@@ -33,18 +107,50 @@ const tempRef = ref(db, "Data/Temperature");
 const humRef  = ref(db, "Data/Humidity");
 const gpsRef  = ref(db, "Data/GPS");
 
-onValue(tempRef, s => {
-  document.getElementById("temp").textContent = s.val() + " °C";
+const tempElem = document.getElementById("temp");
+const humElem  = document.getElementById("hum");
+const gpsElem  = document.getElementById("gps");
+
+// แสดงค่าปัจจุบัน
+onValue(tempRef, s => { tempElem.textContent = s.val() + " °C"; updateChart(s.val()); });
+onValue(humRef, s  => { humElem.textContent = s.val() + " %"; });
+onValue(gpsRef, s  => { gpsElem.textContent = s.val().lat + " , " + s.val().lng; });
+
+// Chart.js สำหรับ Temp Realtime
+const ctx = document.getElementById('chartTemp').getContext('2d');
+const chartData = {
+  labels: [],
+  datasets: [{
+    label: 'Temperature (°C)',
+    data: [],
+    borderColor: '#38bdf8',
+    backgroundColor: 'rgba(56, 189, 248,0.2)',
+    tension: 0.4
+  }]
+};
+
+const tempChart = new Chart(ctx, {
+  type: 'line',
+  data: chartData,
+  options: {
+    responsive: true,
+    scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } },
+    plugins: { legend: { labels: { color: 'white' } } }
+  }
 });
 
-onValue(humRef, s => {
-  document.getElementById("hum").textContent = s.val() + " %";
-});
-
-onValue(gpsRef, s => {
-  document.getElementById("gps").textContent = s.val().lat + " , " + s.val().lng;
-});
+// เพิ่มค่าลง Chart
+function updateChart(temp) {
+  const now = new Date();
+  const timeLabel = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+  chartData.labels.push(timeLabel);
+  chartData.datasets[0].data.push(temp);
+  if(chartData.labels.length > 20) {
+    chartData.labels.shift();
+    chartData.datasets[0].data.shift();
+  }
+  tempChart.update();
+}
 </script>
-
 </body>
 </html>
