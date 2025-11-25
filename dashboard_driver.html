@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<title>Driver Dashboard</title>
+<title>Driver Dashboard - Smart Cold Chain</title>
 <link rel="stylesheet" href="styles.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -17,6 +17,7 @@
   padding-top: 20px;
   display: flex;
   flex-direction: column;
+  z-index: 1000;
 }
 
 .sidebar a {
@@ -64,6 +65,13 @@
   margin-top: 20px;
 }
 
+.value {
+  font-size: 36px;
+  font-weight: 700;
+  margin-top: 10px;
+  color: #a5f3fc;
+}
+
 .btn {
   background: #38bdf8;
   padding: 12px 18px;
@@ -91,7 +99,7 @@
 
   <div class="card">
     <h3><span class="icon">🌡️</span> สถานะอุณหภูมิ</h3>
-    <div id="temp" class="value">--</div>
+    <div id="temp" class="value">-- °C</div>
   </div>
 
   <div class="card">
@@ -110,12 +118,12 @@
 import { db, ref, onValue, set } from "./firebase-config.js";
 
 const tempElem = document.getElementById("temp");
-const gpsElem = document.getElementById("gps");
+const gpsElem  = document.getElementById("gps");
 
 const tempRef = ref(db, "Data/Temperature");
 const gpsRef  = ref(db, "Data/GPS");
 
-// แสดงค่าปัจจุบัน
+// แสดงค่า realtime
 onValue(tempRef, s => { tempElem.textContent = s.val() + " °C"; updateChart(s.val()); });
 onValue(gpsRef, s => { gpsElem.textContent = s.val().lat + " , " + s.val().lng; });
 
@@ -127,7 +135,7 @@ const chartData = {
     label: 'Temperature (°C)',
     data: [],
     borderColor: '#38bdf8',
-    backgroundColor: 'rgba(56, 189, 248,0.2)',
+    backgroundColor: 'rgba(56,189,248,0.2)',
     tension: 0.4
   }]
 };
@@ -142,19 +150,21 @@ const tempChart = new Chart(ctx, {
   }
 });
 
-function updateChart(temp) {
+function updateChart(temp){
   const now = new Date();
   const timeLabel = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
   chartData.labels.push(timeLabel);
   chartData.datasets[0].data.push(temp);
+
   if(chartData.labels.length > 20){
     chartData.labels.shift();
     chartData.datasets[0].data.shift();
   }
+
   tempChart.update();
 }
 
-// ตัวอย่างอัปเดต GPS
+// อัปเดต GPS แบบ Demo
 async function updateGPS() {
   const lat = 14.1234 + Math.random() * 0.01;
   const lng = 100.1234 + Math.random() * 0.01;
