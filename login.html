@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cold Guard Login</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0057ff, #00c6ff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+            width: 350px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(8px);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .role-card {
+            background: #ffffff;
+            color: #333;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.25s;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .role-card:hover {
+            transform: scale(1.05);
+            background: #e9f1ff;
+        }
+    </style>
+
+</head>
+<body>
+    <div class="container">
+        <h1>Cold Guard Login</h1>
+        <p>Select your role</p>
+
+        <div class="role-card" onclick="selectRole('Seller')">Seller</div>
+        <div class="role-card" onclick="selectRole('Buyer')">Buyer</div>
+        <div class="role-card" onclick="selectRole('Driver')">Driver</div>
+    </div>
+
+    <script>
+        function selectRole(role) {
+            localStorage.setItem("userRole", role);
+            window.location.href = "dashboard.html";
+        }
+    </script>
+
+</body>
+</html>
