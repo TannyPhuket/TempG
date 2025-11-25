@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Driver Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-3xl mx-auto bg-white shadow-xl rounded-xl p-6">
+    
+    <h1 class="text-2xl font-bold mb-4 text-red-600">Driver Dashboard</h1>
+
+    <!-- Temperature + Status -->
+    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">Temperature</h2>
+      <p id="temp" class="text-4xl font-bold mt-2 text-blue-600">--</p>
+      <p id="tempStatus" class="mt-2 font-semibold"></p>
+    </div>
+
+    <!-- Humidity -->
+    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">Humidity</h2>
+      <p id="hum" class="text-3xl font-bold mt-2 text-green-600">--</p>
+    </div>
+
+    <!-- GPS -->
+    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">GPS Location</h2>
+      <p class="mt-1 text-lg">Lat: <span id="lat" class="font-semibold">--</span></p>
+      <p class="mt-1 text-lg">Lng: <span id="lng" class="font-semibold">--</span></p>
+
+      <a id="mapLink" href="#" target="_blank"
+         class="mt-3 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700">
+        เปิดใน Google Maps
+      </a>
+    </div>
+
+    <!-- Last Update -->
+    <div class="p-4 rounded-lg shadow bg-gray-50">
+      <h2 class="text-xl font-semibold text-gray-700">Last Update</h2>
+      <p id="time" class="text-lg font-medium text-gray-600 mt-2">--</p>
+    </div>
+
+  </div>
+
+
+  <script type="module">
+    import { db, ref, onValue } from "./js/firebase-config.js";
+
+    const tempRef = ref(db, "/Data/Temperature");
+    const humRef  = ref(db, "/Data/Humidity");
+    const latRef  = ref(db, "/Data/Gps/Lat");
+    const lngRef  = ref(db, "/Data/Gps/Lng");
+    const timeRef = ref(db, "/Data/Timestamp");
+
+    const tempEl = document.getElementById("temp");
+    const humEl  = document.getElementById("hum");
+    const latEl  = document.getElementById("lat");
+    const lngEl  = document.getElementById("lng");
+    const timeEl = document.getElementById("time");
+    const tempStatusEl = document.getElementById("tempStatus");
+    const mapBtn = document.getElementById("mapLink");
+
+    let maxTemp = -10;
+    let minTemp = -18;
+
+    // Load temp limit
+    const maxRef = ref(db, "/settings/maxTemp");
+    const minRef = ref(db, "/settings/minTemp");
+
+    onValue(maxRef, s => maxTemp = s.val());
+    onValue(minRef, s => minTemp = s.val());
+
+    // Realtime Data
+    onValue(tempRef, s => {
+      const v = s.val();
+      tempEl.textContent = v;
+
+      if (v > maxTemp) {
+        tempStatusEl.textContent = "⚠️ อุณหภูมิสูงเกินกำหนด!";
+        tempStatusEl.className = "text-red-600 font-bold";
+      } else if (v < minTemp) {
+        tempStatusEl.textContent = "⚠️ อุณหภูมิต่ำเกินกำหนด!";
+        tempStatusEl.className = "text-blue-700 font-bold";
+      } else {
+        tempStatusEl.textContent = "✔ ปกติ";
+        tempStatusEl.className = "text-green-600 font-bold";
+      }
+    });
+
+    onValue(humRef, s => humEl.textContent = s.val());
+    onValue(latRef, s => {
+      latEl.textContent = s.val();
+      updateMapLink();
+    });
+    onValue(lngRef, s => {
+      lngEl.textContent = s.val();
+      updateMapLink();
+    });
+    onValue(timeRef, s => timeEl.textContent = s.val());
+
+    // Update Google Maps Link
+    function updateMapLink() {
+      const lat = latEl.textContent;
+      const lng = lngEl.textContent;
+
+      if (lat !== "--" && lng !== "--") {
+        mapBtn.href = `https://www.google.com/maps?q=${lat},${lng}`;
+      }
+    }
+  </script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Driver Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-3xl mx-auto bg-white shadow-xl rounded-xl p-6">
+    
+    <h1 class="text-2xl font-bold mb-4 text-red-600">Driver Dashboard</h1>
+
+    <!-- Temperature + Status -->
+    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">Temperature</h2>
+      <p id="temp" class="text-4xl font-bold mt-2 text-blue-600">--</p>
+      <p id="tempStatus" class="mt-2 font-semibold"></p>
+    </div>
+
+    <!-- Humidity -->
+    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">Humidity</h2>
+      <p id="hum" class="text-3xl font-bold mt-2 text-green-600">--</p>
+    </div>
+
+    <!-- GPS -->
+    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">GPS Location</h2>
+      <p class="mt-1 text-lg">Lat: <span id="lat" class="font-semibold">--</span></p>
+      <p class="mt-1 text-lg">Lng: <span id="lng" class="font-semibold">--</span></p>
+
+      <a id="mapLink" href="#" target="_blank"
+         class="mt-3 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700">
+        เปิดใน Google Maps
+      </a>
+    </div>
+
+    <!-- Last Update -->
+    <div class="p-4 rounded-lg shadow bg-gray-50">
+      <h2 class="text-xl font-semibold text-gray-700">Last Update</h2>
+      <p id="time" class="text-lg font-medium text-gray-600 mt-2">--</p>
+    </div>
+
+  </div>
+
+
+  <script type="module">
+    import { db, ref, onValue } from "./js/firebase-config.js";
+
+    const tempRef = ref(db, "/Data/Temperature");
+    const humRef  = ref(db, "/Data/Humidity");
+    const latRef  = ref(db, "/Data/Gps/Lat");
+    const lngRef  = ref(db, "/Data/Gps/Lng");
+    const timeRef = ref(db, "/Data/Timestamp");
+
+    const tempEl = document.getElementById("temp");
+    const humEl  = document.getElementById("hum");
+    const latEl  = document.getElementById("lat");
+    const lngEl  = document.getElementById("lng");
+    const timeEl = document.getElementById("time");
+    const tempStatusEl = document.getElementById("tempStatus");
+    const mapBtn = document.getElementById("mapLink");
+
+    let maxTemp = -10;
+    let minTemp = -18;
+
+    // Load temp limit
+    const maxRef = ref(db, "/settings/maxTemp");
+    const minRef = ref(db, "/settings/minTemp");
+
+    onValue(maxRef, s => maxTemp = s.val());
+    onValue(minRef, s => minTemp = s.val());
+
+    // Realtime Data
+    onValue(tempRef, s => {
+      const v = s.val();
+      tempEl.textContent = v;
+
+      if (v > maxTemp) {
+        tempStatusEl.textContent = "⚠️ อุณหภูมิสูงเกินกำหนด!";
+        tempStatusEl.className = "text-red-600 font-bold";
+      } else if (v < minTemp) {
+        tempStatusEl.textContent = "⚠️ อุณหภูมิต่ำเกินกำหนด!";
+        tempStatusEl.className = "text-blue-700 font-bold";
+      } else {
+        tempStatusEl.textContent = "✔ ปกติ";
+        tempStatusEl.className = "text-green-600 font-bold";
+      }
+    });
+
+    onValue(humRef, s => humEl.textContent = s.val());
+    onValue(latRef, s => {
+      latEl.textContent = s.val();
+      updateMapLink();
+    });
+    onValue(lngRef, s => {
+      lngEl.textContent = s.val();
+      updateMapLink();
+    });
+    onValue(timeRef, s => timeEl.textContent = s.val());
+
+    // Update Google Maps Link
+    function updateMapLink() {
+      const lat = latEl.textContent;
+      const lng = lngEl.textContent;
+
+      if (lat !== "--" && lng !== "--") {
+        mapBtn.href = `https://www.google.com/maps?q=${lat},${lng}`;
+      }
+    }
+  </script>
+
+</body>
+</html>
