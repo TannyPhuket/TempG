@@ -1,115 +1,36 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>Buyer Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8" />
+<title>Buyer Dashboard</title>
+<link rel="stylesheet" href="styles.css" />
 </head>
 
-<body class="bg-blue-50 min-h-screen p-6">
-  <div class="max-w-3xl mx-auto bg-white shadow-xl rounded-xl p-6">
+<body>
+<div class="container">
+  <h2 class="title">Buyer Dashboard</h2>
 
-    <h1 class="text-2xl font-bold mb-4 text-blue-700">Buyer Dashboard</h1>
-
-    <!-- Temperature -->
-    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
-      <h2 class="text-xl font-semibold">อุณหภูมิสินค้า</h2>
-      <p id="temp" class="text-4xl font-bold text-blue-600 mt-2">-- °C</p>
-      <p id="tempStatus" class="font-semibold mt-2"></p>
-    </div>
-
-    <!-- Humidity -->
-    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
-      <h2 class="text-xl font-semibold">ความชื้น</h2>
-      <p id="hum" class="text-3xl font-bold text-green-600 mt-2">-- %</p>
-    </div>
-
-    <!-- GPS -->
-    <div class="p-4 rounded-lg shadow bg-gray-50 mb-4">
-      <h2 class="text-xl font-semibold">ตำแหน่งรถ</h2>
-      <p class="mt-1 text-lg">ละติจูด: <span id="lat" class="font-semibold">--</span></p>
-      <p class="mt-1 text-lg">ลองจิจูด: <span id="lng" class="font-semibold">--</span></p>
-
-      <a id="mapLink" href="#" target="_blank"
-         class="mt-3 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-        เปิดแผนที่ใน Google Maps
-      </a>
-    </div>
-
-    <!-- Update Time -->
-    <div class="p-4 rounded-lg shadow bg-gray-50">
-      <h2 class="text-xl font-semibold">อัปเดตล่าสุด</h2>
-      <p id="time" class="text-lg font-medium text-gray-600 mt-2">--</p>
-    </div>
-
+  <div class="card">
+    <h3>อุณหภูมิสินค้าปัจจุบัน</h3>
+    <div id="temp" class="value">--</div>
   </div>
 
-  <!-- Firebase Realtime Import -->
-  <script type="module">
-    import { db, ref, onValue } from "./js/firebase-config.js";
+  <div class="card">
+    <h3>ตำแหน่งสินค้า</h3>
+    <div id="gps" class="value">--</div>
+  </div>
+</div>
 
-    const tempRef = ref(db, "/Data/Temperature");
-    const humRef  = ref(db, "/Data/Humidity");
-    const latRef  = ref(db, "/Data/Gps/Lat");
-    const lngRef  = ref(db, "/Data/Gps/Lng");
-    const timeRef = ref(db, "/Data/Timestamp");
+<script type="module">
+import { db, ref, onValue } from "./firebase-config.js";
 
-    const tempEl = document.getElementById("temp");
-    const humEl  = document.getElementById("hum");
-    const latEl  = document.getElementById("lat");
-    const lngEl  = document.getElementById("lng");
-    const timeEl = document.getElementById("time");
-    const mapBtn = document.getElementById("mapLink");
-    const tempStatusEl = document.getElementById("tempStatus");
+onValue(ref(db, "Data/Temperature"), s => {
+  document.getElementById("temp").textContent = s.val() + " °C";
+});
 
-    let maxTemp = -10;
-    let minTemp = -18;
-
-    const maxRef = ref(db, "/settings/maxTemp");
-    const minRef = ref(db, "/settings/minTemp");
-
-    onValue(maxRef, s => maxTemp = s.val());
-    onValue(minRef, s => minTemp = s.val());
-
-    onValue(tempRef, (snap) => {
-      const t = snap.val();
-      tempEl.textContent = t + " °C";
-
-      if (t > maxTemp) {
-        tempStatusEl.textContent = "⚠️ อุณหภูมิสูงเกินกำหนด!";
-        tempStatusEl.className = "mt-2 text-red-600 font-bold";
-      } else if (t < minTemp) {
-        tempStatusEl.textContent = "⚠️ อุณหภูมิต่ำเกินกำหนด!";
-        tempStatusEl.className = "mt-2 text-blue-700 font-bold";
-      } else {
-        tempStatusEl.textContent = "✔ อยู่ในเกณฑ์มาตรฐาน";
-        tempStatusEl.className = "mt-2 text-green-600 font-bold";
-      }
-    });
-
-    onValue(humRef, snap => humEl.textContent = snap.val() + " %");
-
-    onValue(latRef, snap => {
-      latEl.textContent = snap.val();
-      updateLink();
-    });
-
-    onValue(lngRef, snap => {
-      lngEl.textContent = snap.val();
-      updateLink();
-    });
-
-    onValue(timeRef, snap => timeEl.textContent = snap.val());
-
-    function updateLink() {
-      const lat = latEl.textContent;
-      const lng = lngEl.textContent;
-
-      if (lat !== "--" && lng !== "--") {
-        mapBtn.href = `https://www.google.com/maps?q=${lat},${lng}`;
-      }
-    }
-  </script>
-
+onValue(ref(db, "Data/GPS"), s => {
+  document.getElementById("gps").textContent = s.val().lat + " , " + s.val().lng;
+});
+</script>
 </body>
 </html>
