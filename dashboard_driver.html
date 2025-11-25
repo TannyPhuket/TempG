@@ -8,14 +8,20 @@
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-/* Sidebar */
+body {
+  font-family: "Poppins", sans-serif;
+  background: #f7fafc;
+  color: #111;
+  margin: 0;
+  padding: 0;
+}
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
   width: 220px;
   height: 100%;
-  background: #1e293b;
+  background: #38bdf8;
   padding-top: 20px;
   display: flex;
   flex-direction: column;
@@ -31,52 +37,46 @@
   gap: 10px;
   transition: 0.2s;
 }
-.sidebar a:hover {
-  background: #334155;
-  border-radius: 8px;
-}
+.sidebar a:hover { background: #22c55e; border-radius: 8px; }
 
-/* Main Content */
-.main {
-  margin-left: 240px;
-  padding: 20px;
-}
+.main { margin-left: 240px; padding: 20px; }
 .card {
-  background: #1e293b;
+  background: #ffffff;
   padding: 20px;
   border-radius: 14px;
   margin-top: 20px;
-  box-shadow: 0 0 20px #0f172a;
-  transition: transform 0.2s;
+  box-shadow: 0 0 20px rgba(0,0,0,0.15);
+  transition: background 0.3s, color 0.3s;
 }
-.card:hover { transform: translateY(-3px); }
-.icon {
-  font-size: 22px;
-  color: #38bdf8;
-  margin-right: 10px;
+.card.alert {
+  background: #ffe5e5;
+  color: red;
 }
-.chart-container {
-  background: #1e293b;
-  padding: 15px;
-  border-radius: 12px;
-  margin-top: 20px;
+
+#siren {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 60px;
+  height: 60px;
+  background: red;
+  border-radius: 50%;
+  box-shadow: 0 0 20px red;
+  display: none;
+  animation: flash 0.5s infinite;
+  z-index: 2000;
 }
-.value {
-  font-size: 36px;
-  font-weight: 700;
-  margin-top: 10px;
-  color: #a5f3fc;
+@keyframes flash {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
 }
-.btn {
-  background: #38bdf8;
-  padding: 12px 18px;
-  border-radius: 12px;
-  color: black;
-  font-weight: bold;
-  border: none;
-  margin-top: 20px;
-  cursor: pointer;
-}
+
+.icon { font-size: 22px; margin-right: 10px; }
+.chart-container { background:#fff; padding:15px; border-radius:12px; margin-top:20px; }
+.value { font-size:36px; font-weight:700; margin-top:10px; color:#111; }
+.value.alert { color: red; }
+
+.btn { background: #38bdf8; padding:12px 18px; border-radius:12px; color:black; font-weight:bold; border:none; cursor:pointer; margin-top:20px; }
 </style>
 </head>
 
@@ -85,14 +85,15 @@
   <a href="#"><span class="icon">🏠</span> Dashboard</a>
   <a href="#"><span class="icon">🌡️</span> Temperature</a>
   <a href="#"><span class="icon">📍</span> GPS</a>
-  <a href="#"><span class="icon">⚙️</span> Settings</a>
   <a href="login.html"><span class="icon">🔓</span> Logout</a>
 </div>
+
+<div id="siren"></div>
 
 <div class="main">
   <h2 class="title">Driver Dashboard</h2>
 
-  <div class="card">
+  <div class="card" id="tempCard">
     <h3><span class="icon">🌡️</span> สถานะอุณหภูมิ</h3>
     <div id="temp" class="value">-- °C</div>
   </div>
@@ -105,9 +106,11 @@
   <button class="btn" onclick="updateGPS()">📍 อัปเดตตำแหน่งรถ</button>
 
   <div class="chart-container">
-    <canvas id="chartTemp"></canvas>
+    <canvas id="chartTempHum"></canvas>
   </div>
 </div>
+
+<audio id="sirenAudio" src="https://actions.google.com/sounds/v1/alarms/phone_alerts_and_notifications.ogg"></audio>
 
 <script>
 // Firebase Config
@@ -120,39 +123,59 @@ const firebaseConfig = {
   messagingSenderId: "xxxx",
   appId: "xxxx"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Elements
 const tempElem = document.getElementById("temp");
-const gpsElem  = document.getElementById("gps");
+const gpsElem = document.getElementById("gps");
+const tempCard = document.getElementById("tempCard");
+const sirenElem = document.getElementById("siren");
+const sirenAudio = document.getElementById("sirenAudio");
 
-// Realtime Database References
-const tempRef = db.ref("Data/Temperature");
-const gpsRef  = db.ref("Data/GPS");
+const TEMP_THRESHOLD = 30;
 
-// Chart.js
-const ctx = document.getElementById('chartTemp').getContext('2d');
-const chartData = { labels: [], datasets: [{ label:'Temperature (°C)', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.2)', tension:0.4 }] };
-const chart = new Chart(ctx, { type:'line', data:chartData, options:{ responsive:true, scales:{ x:{ ticks:{ color:'white' } }, y:{ ticks:{ color:'white' } } }, plugins:{ legend:{ labels:{ color:'white' } } } } });
+// Chart
+const ctx = document.getElementById('chartTempHum').getContext('2d');
+const chartData = { labels:[], datasets:[
+  {label:'Temperature (°C)', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.2)', tension:0.4}
+]};
+const chart = new Chart(ctx,{type:'line', data:chartData, options:{responsive:true, scales:{ x:{ ticks:{ color:'#111' } }, y:{ ticks:{ color:'#111' } } }, plugins:{ legend:{ labels:{ color:'#111' } } } }});
 
-// Realtime Update
-tempRef.on('value', snapshot => {
-  const val = snapshot.val();
-  tempElem.textContent = val + " °C";
+// Realtime
+db.ref("Data/Temperature").on('value', snap=>{
+  const val = snap.val();
+  tempElem.textContent = val+" °C";
   updateChart(val);
-});
-gpsRef.on('value', snapshot => {
-  const val = snapshot.val();
-  if(val && val.lat!==undefined && val.lng!==undefined){
-    gpsElem.textContent = val.lat + " , " + val.lng;
+
+  if(val>TEMP_THRESHOLD){
+    tempElem.classList.add("alert");
+    tempCard.classList.add("alert");
+    sirenElem.style.display = "block";
+    sirenAudio.play();
   } else {
-    gpsElem.textContent = "No GPS data";
+    tempElem.classList.remove("alert");
+    tempCard.classList.remove("alert");
+    sirenElem.style.display = "none";
+    sirenAudio.pause();
+    sirenAudio.currentTime = 0;
   }
 });
 
-// Update chart
+db.ref("Data/GPS").on('value', snap=>{
+  const val = snap.val();
+  if(val && val.lat!==undefined && val.lng!==undefined){
+    gpsElem.textContent = val.lat+" , "+val.lng;
+  } else gpsElem.textContent="No GPS data";
+});
+
+// Update GPS demo
+async function updateGPS(){
+  const lat = 14.1234 + Math.random()*0.01;
+  const lng = 100.1234 + Math.random()*0.01;
+  await db.ref("Data/GPS").set({lat,lng});
+  alert("อัปเดตตำแหน่งแล้ว!");
+}
+
 function updateChart(temp){
   const now = new Date();
   const timeLabel = now.getHours()+":"+now.getMinutes()+":"+now.getSeconds();
@@ -163,14 +186,6 @@ function updateChart(temp){
     chartData.datasets[0].data.shift();
   }
   chart.update();
-}
-
-// Update GPS (Demo)
-function updateGPS(){
-  const lat = 14.1234 + Math.random()*0.01;
-  const lng = 100.1234 + Math.random()*0.01;
-  db.ref("Data/GPS").set({ lat, lng });
-  alert("อัปเดตตำแหน่งแล้ว!");
 }
 </script>
 </body>
