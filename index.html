@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Monitoring Dashboard</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .hidden { display: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    .alert { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2>Monitoring Dashboard</h2>
+  <p>Role: <span id="role"></span></p>
+
+  <!-- Seller only -->
+  <div id="settings" class="hidden">
+    <h3>Temperature Alert Setting</h3>
+    <input type="number" id="alertTemp" placeholder="Max °C">
+    <button onclick="saveAlert()">Save</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date/Time</th>
+        <th>Temperature</th>
+        <th>Humidity</th>
+        <th>GPS</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <button onclick="prevPage()">Previous</button>
+  <button onclick="nextPage()">Next</button>
+
+  <script type="module">
+
+    // ✅ Firebase Config (แก้ใส่ของคุณเอง)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_DOMAIN",
+      databaseURL: "YOUR_DB_URL",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_BUCKET",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_APP"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ✅ ชั่วคราว: กำหนดบทบาท (ภายหลังจะใช้ระบบล็อกอิน)
+    let role = "Seller"; // เปลี่ยนเป็น Buyer หรือ Driver ได้
+    document.getElementById("role").innerText = role;
+
+    if (role === "Seller") {
+      document.getElementById("settings").classList.remove("hidden");
+    }
+
+    // ✅ Pagination
+    let page = 0;
+    const pageSize = 10;
+    let records = [];
+
+    function loadRecords() {
+      const recordsRef = ref(db, "records");
+      onValue(recordsRef, (snapshot) => {
+        const data = snapshot.val();
+        records = Object.entries(data || {}).reverse();
+        renderPage();
+      });
+    }
+
+    function renderPage() {
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+
+      const start = page * pageSize;
+      const end = start + pageSize;
+
+      const pageRecords = records.slice(start, end);
+
+      pageRecords.forEach(([time, item]) => {
+        const row = `<tr>
+            <td>${time}</td>
+            <td class="${item.temperature > window.alertTemperature ? 'alert' : ''}">
+              ${item.temperature}°C
+            </td>
+            <td>${item.humidity}%</td>
+            <td>${item.gps.lat}, ${item.gps.lng}</td>
+            <td>${item.status}</td>
+          </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    // ✅ เปลี่ยนหน้า
+    window.nextPage = () => { page++; renderPage(); }
+    window.prevPage = () => { if (page > 0) page--; renderPage(); }
+
+    // ✅ บันทึกค่าตั้งเตือน (เฉพาะ Seller)
+    window.saveAlert = () => {
+      const val = document.getElementById("alertTemp").value;
+      update(ref(db, "settings"), { alertTemperature: Number(val) });
+      alert("Saved!");
+    };
+
+    loadRecords();
+
+  </script>
+
+</body>
+</html>
