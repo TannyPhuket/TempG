@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <title>Seller Dashboard - Smart Cold Chain</title>
 <link rel="stylesheet" href="styles.css" />
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* Sidebar */
@@ -19,7 +21,6 @@
   flex-direction: column;
   z-index: 1000;
 }
-
 .sidebar a {
   color: white;
   padding: 15px 20px;
@@ -30,7 +31,6 @@
   gap: 10px;
   transition: 0.2s;
 }
-
 .sidebar a:hover {
   background: #334155;
   border-radius: 8px;
@@ -41,7 +41,6 @@
   margin-left: 240px;
   padding: 20px;
 }
-
 .card {
   background: #1e293b;
   padding: 20px;
@@ -51,20 +50,17 @@
   transition: transform 0.2s;
 }
 .card:hover { transform: translateY(-3px); }
-
 .icon {
   font-size: 22px;
   color: #38bdf8;
   margin-right: 10px;
 }
-
 .chart-container {
   background: #1e293b;
   padding: 15px;
   border-radius: 12px;
   margin-top: 20px;
 }
-
 .value {
   font-size: 36px;
   font-weight: 700;
@@ -107,23 +103,32 @@
   </div>
 </div>
 
-<script type="module">
-import { db, ref, onValue } from "./firebase-config.js";
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+  authDomain: "temperature-cold-guard.firebaseapp.com",
+  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "temperature-cold-guard",
+  storageBucket: "temperature-cold-guard.appspot.com",
+  messagingSenderId: "xxxx",
+  appId: "xxxx"
+};
 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Elements
 const tempElem = document.getElementById("temp");
-const humElem  = document.getElementById("hum");
-const gpsElem  = document.getElementById("gps");
+const humElem = document.getElementById("hum");
+const gpsElem = document.getElementById("gps");
 
-const tempRef = ref(db, "Data/Temperature");
-const humRef  = ref(db, "Data/Humidity");
-const gpsRef  = ref(db, "Data/GPS");
+// Realtime Database References
+const tempRef = db.ref("Data/Temperature");
+const humRef  = db.ref("Data/Humidity");
+const gpsRef  = db.ref("Data/GPS");
 
-// แสดงค่า realtime
-onValue(tempRef, s => { tempElem.textContent = s.val() + " °C"; updateChart(s.val(), null); });
-onValue(humRef, s  => { humElem.textContent = s.val() + " %"; updateChart(null, s.val()); });
-onValue(gpsRef, s  => { gpsElem.textContent = s.val().lat + " , " + s.val().lng; });
-
-// Chart.js แบบ Temperature + Humidity
+// Chart.js
 const ctx = document.getElementById('chartTempHum').getContext('2d');
 const chartData = {
   labels: [],
@@ -144,35 +149,49 @@ const chartData = {
     }
   ]
 };
-
 const chart = new Chart(ctx, {
   type: 'line',
   data: chartData,
   options: {
     responsive: true,
-    scales: { 
-      x: { ticks: { color: 'white' } }, 
-      y: { ticks: { color: 'white' } } 
-    },
+    scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } },
     plugins: { legend: { labels: { color: 'white' } } }
   }
 });
 
-// update chart
+// Update functions
+tempRef.on('value', snapshot => {
+  const val = snapshot.val();
+  tempElem.textContent = val + " °C";
+  updateChart(val, null);
+});
+humRef.on('value', snapshot => {
+  const val = snapshot.val();
+  humElem.textContent = val + " %";
+  updateChart(null, val);
+});
+gpsRef.on('value', snapshot => {
+  const val = snapshot.val();
+  if(val && val.lat !== undefined && val.lng !== undefined){
+    gpsElem.textContent = val.lat + " , " + val.lng;
+  } else {
+    gpsElem.textContent = "No GPS data";
+  }
+});
+
+// Update chart
 function updateChart(temp, hum){
   const now = new Date();
-  const timeLabel = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+  const timeLabel = now.getHours()+":"+now.getMinutes()+":"+now.getSeconds();
   chartData.labels.push(timeLabel);
+  chartData.datasets[0].data.push(temp!==null?temp:null);
+  chartData.datasets[1].data.push(hum!==null?hum:null);
 
-  chartData.datasets[0].data.push(temp !== null ? temp : null);
-  chartData.datasets[1].data.push(hum !== null ? hum : null);
-
-  if(chartData.labels.length > 20){
+  if(chartData.labels.length>20){
     chartData.labels.shift();
     chartData.datasets[0].data.shift();
     chartData.datasets[1].data.shift();
   }
-
   chart.update();
 }
 </script>
