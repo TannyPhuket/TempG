@@ -1,29 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Cool Guard - Login</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Realtime Firebase Demo</title>
 </head>
 <body>
-<div class="login-container">
-  <h1>Login</h1>
-  <select id="role">
-    <option value="seller">Seller</option>
-    <option value="buyer">Buyer</option>
-    <option value="driver">Driver</option>
-  </select>
-  <button onclick="login()">Login</button>
-</div>
+  <h2>Realtime Data</h2>
 
-<script>
-function login() {
-  const role = document.getElementById('role').value;
-  if(role === 'seller') window.location.href = 'Dashboard_seller.html';
-  else if(role === 'buyer') window.location.href = 'Dashboard_buyer.html';
-  else window.location.href = 'Dashboard_driver.html';
-}
-</script>
+  <p>Temperature: <span id="temp">--</span></p>
+  <p>Humidity: <span id="hum">--</span></p>
+  <p>Latitude: <span id="lat">--</span></p>
+  <p>Longitude: <span id="lng">--</span></p>
+
+  <script type="module">
+    import { db, ref, onValue } from "./js/firebase-config.js";
+
+    const tempRef = ref(db, "/Data/Temperature");
+    const humRef  = ref(db, "/Data/Humidity");
+    const latRef  = ref(db, "/Data/Gps/Lat");
+    const lngRef  = ref(db, "/Data/Gps/Lng");
+
+    onValue(tempRef, (snapshot) => {
+      document.getElementById("temp").textContent = snapshot.val();
+    });
+
+    onValue(humRef, (snapshot) => {
+      document.getElementById("hum").textContent = snapshot.val();
+    });
+
+    onValue(latRef, (snapshot) => {
+      document.getElementById("lat").textContent = snapshot.val();
+    });
+
+    onValue(lngRef, (snapshot) => {
+      document.getElementById("lng").textContent = snapshot.val();
+    });
+  </script>
 </body>
 </html>
