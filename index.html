@@ -2,6 +2,10 @@
 <html>
 <head>
   <title>Monitoring Dashboard</title>
+
+  <!-- ✅ Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -42,15 +46,10 @@
       font-weight: bold;
     }
     #map {
-      background: #dfe6e9;
-      height: 250px;
+      height: 300px;
       border-radius: 10px;
       margin-bottom: 20px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #555;
-      font-size: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     table {
       width: 100%;
@@ -107,14 +106,14 @@
 
     <p><b>Role:</b> <span id="role"></span></p>
 
-    <!-- Seller Only -->
+    <!-- ✅ Seller Only -->
     <div id="settings" class="hidden">
       <h3>Temperature Alert Setting</h3>
       <input type="number" id="alertTemp" placeholder="Max °C">
       <button onclick="saveAlert()">Save</button>
     </div>
 
-    <!-- Cards -->
+    <!-- ✅ Cards -->
     <div class="cards">
       <div class="card">
         <h3>Temperature</h3>
@@ -130,10 +129,10 @@
       </div>
     </div>
 
-    <!-- Mini Map -->
-    <div id="map">Mini Map Preview</div>
+    <!-- ✅ Mini Map -->
+    <div id="map"></div>
 
-    <!-- Table -->
+    <!-- ✅ Table -->
     <table>
       <thead>
         <tr>
@@ -154,6 +153,8 @@
 
   </div>
 
+  <!-- ✅ Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
   <!-- ✅ Firebase Script -->
   <script type="module">
@@ -161,20 +162,21 @@
     import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
     const firebaseConfig = {
-      apiKey: "YOUR_KEY",
-      authDomain: "YOUR_DOMAIN",
-      databaseURL: "YOUR_DB_URL",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_BUCKET",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_APP"
+      apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+      authDomain: "temperature-cold-guard.firebaseapp.com",
+      databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "temperature-cold-guard",
+      storageBucket: "temperature-cold-guard.firebasestorage.app",
+      messagingSenderId: "29693405672",
+      appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
+      measurementId: "G-XDHBRJ9S3W"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ✅ ชั่วคราว: ตั้ง Role ด้วยตัวเอง
-    let role = "Seller"; // เปลี่ยนเป็น Buyer หรือ Driver ได้
+    // ✅ ตั้ง Role ชั่วคราว
+    let role = "Seller"; // เปลี่ยนเป็น Buyer / Driver ได้
     document.getElementById("role").innerText = role;
 
     if (role === "Seller") {
@@ -186,18 +188,24 @@
     const pageSize = 10;
     let records = [];
 
-    // ✅ โหลดข้อมูล Realtime Database
+    // ✅ Leaflet Map Setup
+    const map = L.map('map').setView([13.736717, 100.523186], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let marker = null;
+
+    // ✅ Load Records
     function loadRecords() {
       const recordsRef = ref(db, "records");
       onValue(recordsRef, (snapshot) => {
         const data = snapshot.val();
         records = Object.entries(data || {}).reverse();
         updateCards(records[0]?.[1]);
+        updateMap(records[0]?.[1]);
         renderPage();
       });
     }
 
-    // ✅ อัพเดตการ์ดด้านบน
+    // ✅ Update Cards
     function updateCards(latest) {
       if (!latest) return;
       document.getElementById("cardTemp").innerText = latest.temperature + "°C";
@@ -205,7 +213,21 @@
       document.getElementById("cardStatus").innerText = latest.status;
     }
 
-    // ✅ แสดงข้อมูลในตาราง
+    // ✅ Update Map
+    function updateMap(latest) {
+      if (!latest || !latest.gps) return;
+      const lat = latest.gps.lat;
+      const lng = latest.gps.lng;
+
+      if (!marker) {
+        marker = L.marker([lat, lng]).addTo(map);
+      } else {
+        marker.setLatLng([lat, lng]);
+      }
+      map.setView([lat, lng], 13);
+    }
+
+    // ✅ Render Table Pagination
     function renderPage() {
       const tbody = document.getElementById("tableBody");
       tbody.innerHTML = "";
@@ -226,11 +248,10 @@
       });
     }
 
-    // ✅ เปลี่ยนหน้า
     window.nextPage = () => { page++; renderPage(); }
     window.prevPage = () => { if (page > 0) page--; renderPage(); }
 
-    // ✅ บันทึกค่าตั้งเตือน Seller Only
+    // ✅ Save Alert Temp (Seller Only)
     window.saveAlert = () => {
       const val = document.getElementById("alertTemp").value;
       update(ref(db, "settings"), { alertTemperature: Number(val) });
