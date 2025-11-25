@@ -2,87 +2,18 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<title>Buyer Dashboard - Smart Cold Chain</title>
+<title>Buyer Dashboard</title>
 <link rel="stylesheet" href="styles.css" />
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body {
-  font-family: "Poppins", sans-serif;
-  background: #f7fafc; /* พื้นหลังสว่าง */
-  color: #111;
-  margin: 0;
-  padding: 0;
-}
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 220px;
-  height: 100%;
-  background: #38bdf8;
-  padding-top: 20px;
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-}
-.sidebar a {
-  color: white;
-  padding: 15px 20px;
-  text-decoration: none;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: 0.2s;
-}
-.sidebar a:hover { background: #22c55e; border-radius: 8px; }
-
-.main { margin-left: 240px; padding: 20px; }
-.card {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 14px;
-  margin-top: 20px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.15);
-  transition: background 0.3s, color 0.3s;
-}
-.card.alert {
-  background: #ffe5e5;
-  color: red;
-}
-
-/* Siren Animation */
-#siren {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 60px;
-  height: 60px;
-  background: red;
-  border-radius: 50%;
-  box-shadow: 0 0 20px red;
-  display: none;
-  animation: flash 0.5s infinite;
-  z-index: 2000;
-}
-@keyframes flash {
-  0%,100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.2); }
-}
-
-.icon { font-size: 22px; margin-right: 10px; }
-.chart-container { background:#fff; padding:15px; border-radius:12px; margin-top:20px; }
-.value { font-size:36px; font-weight:700; margin-top:10px; color:#111; }
-.value.alert { color: red; }
-</style>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY"></script>
 </head>
-
 <body>
 <div class="sidebar">
   <a href="#"><span class="icon">🏠</span> Dashboard</a>
   <a href="#"><span class="icon">🌡️</span> Temperature</a>
+  <a href="#"><span class="icon">💧</span> Humidity</a>
   <a href="#"><span class="icon">📍</span> GPS</a>
   <a href="login.html"><span class="icon">🔓</span> Logout</a>
 </div>
@@ -91,15 +22,19 @@ body {
 
 <div class="main">
   <h2 class="title">Buyer Dashboard</h2>
-
-  <div class="card" id="tempCard">
-    <h3><span class="icon">🌡️</span> อุณหภูมิสินค้าปัจจุบัน</h3>
-    <div id="temp" class="value">-- °C</div>
-  </div>
-
-  <div class="card">
-    <h3><span class="icon">📍</span> ตำแหน่งสินค้า</h3>
-    <div id="gps" class="value">-- , --</div>
+  <div class="grid">
+    <div class="card" id="tempCard">
+      <h3><span class="icon">🌡️</span> อุณหภูมิ</h3>
+      <div id="temp" class="value">-- °C</div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">💧</span> ความชื้น</h3>
+      <div id="hum" class="value">-- %</div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">📍</span> แผนที่ตำแหน่งสินค้า</h3>
+      <div id="map" class="map-container"></div>
+    </div>
   </div>
 
   <div class="chart-container">
@@ -109,79 +44,54 @@ body {
 
 <audio id="sirenAudio" src="https://actions.google.com/sounds/v1/alarms/phone_alerts_and_notifications.ogg"></audio>
 
-<script>
-// Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-  authDomain: "temperature-cold-guard.firebaseapp.com",
-  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "temperature-cold-guard",
-  storageBucket: "temperature-cold-guard.appspot.com",
-  messagingSenderId: "xxxx",
-  appId: "xxxx"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+<script type="module">
+import { db, ref, onValue } from './firebase-config.js';
 
-const tempElem = document.getElementById("temp");
-const gpsElem = document.getElementById("gps");
-const tempCard = document.getElementById("tempCard");
-const sirenElem = document.getElementById("siren");
-const sirenAudio = document.getElementById("sirenAudio");
-
-const TEMP_THRESHOLD = 30;
+// Config
+const TEMP_THRESHOLD=30;
+const tempElem=document.getElementById("temp");
+const humElem=document.getElementById("hum");
+const tempCard=document.getElementById("tempCard");
+const sirenElem=document.getElementById("siren");
+const sirenAudio=document.getElementById("sirenAudio");
 
 // Chart
-const ctx = document.getElementById('chartTempHum').getContext('2d');
-const chartData = { labels:[], datasets:[
-  {label:'Temperature (°C)', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.2)', tension:0.4},
-  {label:'Humidity (%)', data:[], borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.2)', tension:0.4}
+const ctx=document.getElementById('chartTempHum').getContext('2d');
+const chartData={labels:[], datasets:[
+  {label:'Temperature (°C)', data:[], borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.2)', tension:0.4},
+  {label:'Humidity (%)', data:[], borderColor:'#14b8a6', backgroundColor:'rgba(20,184,166,0.2)', tension:0.4}
 ]};
-const chart = new Chart(ctx,{type:'line', data:chartData, options:{responsive:true, scales:{ x:{ ticks:{ color:'#111' } }, y:{ ticks:{ color:'#111' } } }, plugins:{ legend:{ labels:{ color:'#111' } } } }});
+const chart=new Chart(ctx,{type:'line', data:chartData, options:{responsive:true, scales:{ x:{ ticks:{ color:'#111' } }, y:{ ticks:{ color:'#111' } } }, plugins:{ legend:{ labels:{ color:'#111' } } } }});
+
+// Map
+let map, marker;
+function initMap(lat=14.1234,lng=100.1234){ map=new google.maps.Map(document.getElementById('map'),{zoom:12,center:{lat,lng}}); marker=new google.maps.Marker({position:{lat,lng},map}); }
+initMap();
 
 // Realtime
-db.ref("Data/Temperature").on('value', snap=>{
-  const val = snap.val();
-  tempElem.textContent = val+" °C";
+onValue(ref(db,'Data/Temperature'),snap=>{
+  const val=snap.val();
+  tempElem.textContent=val+" °C";
   updateChart(val,null);
-
-  if(val>TEMP_THRESHOLD){
-    tempElem.classList.add("alert");
-    tempCard.classList.add("alert");
-    sirenElem.style.display = "block";
-    sirenAudio.play();
-  } else {
-    tempElem.classList.remove("alert");
-    tempCard.classList.remove("alert");
-    sirenElem.style.display = "none";
-    sirenAudio.pause();
-    sirenAudio.currentTime = 0;
-  }
+  if(val>TEMP_THRESHOLD){ tempElem.classList.add("alert"); tempCard.classList.add("alert"); sirenElem.style.display="block"; sirenAudio.play(); }
+  else{ tempElem.classList.remove("alert"); tempCard.classList.remove("alert"); sirenElem.style.display="none"; sirenAudio.pause(); sirenAudio.currentTime=0; }
 });
-
-db.ref("Data/Humidity").on('value', snap=>{
-  const val = snap.val();
+onValue(ref(db,'Data/Humidity'),snap=>{
+  const val=snap.val();
+  humElem.textContent=val+" %";
   updateChart(null,val);
 });
-
-db.ref("Data/GPS").on('value', snap=>{
-  const val = snap.val();
-  if(val && val.lat!==undefined && val.lng!==undefined){
-    gpsElem.textContent = val.lat+" , "+val.lng;
-  } else gpsElem.textContent="No GPS data";
+onValue(ref(db,'Data/GPS'),snap=>{
+  const val=snap.val();
+  if(val && val.lat!==undefined && val.lng!==undefined){ marker.setPosition({lat:val.lat,lng:val.lng}); map.setCenter({lat:val.lat,lng:val.lng}); }
 });
 
 function updateChart(temp,hum){
-  const now = new Date();
-  const timeLabel = now.getHours()+":"+now.getMinutes()+":"+now.getSeconds();
-  chartData.labels.push(timeLabel);
+  const now=new Date(); const label=now.getHours()+":"+now.getMinutes()+":"+now.getSeconds();
+  chartData.labels.push(label);
   chartData.datasets[0].data.push(temp!==null?temp:null);
   chartData.datasets[1].data.push(hum!==null?hum:null);
-  if(chartData.labels.length>20){
-    chartData.labels.shift();
-    chartData.datasets[0].data.shift();
-    chartData.datasets[1].data.shift();
-  }
+  if(chartData.labels.length>20){ chartData.labels.shift(); chartData.datasets[0].data.shift(); chartData.datasets[1].data.shift(); }
   chart.update();
 }
 </script>
