@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>Login - ColdChain System</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">ColdChain Guard – Login</h2>
+
+    <input id="username" placeholder="Username เช่น Seller_Test_com" />
+    <input id="password" type="password" placeholder="Password" />
+
+    <button class="btn" onclick="login()">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<script type="module">
+import { db, ref, get } from "./firebase-config.js";
+
+async function login() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  const snap = await get(ref(db, "users/" + username));
+
+  if (!snap.exists()) {
+    alert("ไม่พบบัญชีผู้ใช้นี้");
+    return;
+  }
+
+  const data = snap.val();
+
+  if (data.password !== password) {
+    alert("รหัสผ่านไม่ถูกต้อง");
+    return;
+  }
+
+  const role = data.Role;
+
+  // Redirect ตามบทบาท
+  if (role === "Seller") window.location = "dashboard_seller.html";
+  if (role === "Driver") window.location = "dashboard_driver.html";
+  if (role === "Buyer")  window.location = "dashboard_buyer.html";
+}
+</script>
+</body>
+</html>
