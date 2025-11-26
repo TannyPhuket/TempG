@@ -27,9 +27,8 @@ body { margin:0; font-family:Arial, sans-serif; background:#1b1b1b; color:#fff; 
 
 <script>
 function login(role){
-    localStorage.setItem('role', role); // เก็บ Role
-    alert("Logged in as " + role);
-    window.location.href = "full_dashboard.html"; // เปลี่ยนไปหน้า Dashboard
+    localStorage.setItem('userRole', role); 
+    window.location.href = "full_dashboard.html";
 }
 </script>
 
