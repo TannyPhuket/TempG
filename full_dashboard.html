@@ -12,8 +12,13 @@
     <!-- ✅ Simple CSS -->
     <style>
         body { font-family: Arial; margin: 0; background: #f5f5f5; }
+        h3 { margin-bottom: 10px; }
+        .card-container {
+            display: flex; gap: 20px; padding: 20px;
+        }
         .card {
-            background: #4cd964; padding: 20px; border-radius: 12px; margin: 15px;
+            flex: 1;
+            background: #4cd964; padding: 20px; border-radius: 12px;
             color: white; font-size: 20px; font-weight: bold; text-align: center;
         }
         .container { padding: 20px; }
@@ -26,23 +31,25 @@
         }
         th { background: #222; color: white; }
         #map { height: 350px; border-radius: 12px; }
+        .controls button {
+            margin-left: 8px; padding: 5px 12px;
+        }
     </style>
 
     <!-- ✅ Firebase -->
     <script type="module">
-
         // ✅ Firebase Config (แก้ให้ตรงของคุณ)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: "YOUR_KEY",
-            authDomain: "YOUR_DOMAIN",
-            databaseURL: "YOUR_URL",
-            projectId: "YOUR_PROJECT",
-            storageBucket: "YOUR_BUCKET",
-            messagingSenderId: "YOUR_SENDER",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+            authDomain: "temperature-cold-guard.firebaseapp.com",
+            databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "temperature-cold-guard",
+            storageBucket: "temperature-cold-guard.firebasestorage.app",
+            messagingSenderId: "29693405672",
+            appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -103,35 +110,48 @@
             map.setView([gps.lat, gps.lng]);
         });
 
-        // ✅ ตารางย้อนหลัง (ดึงข้อมูลทั้งหมด)
+        // ✅ ตารางย้อนหลังแบบอัปเกรด
+        let allRows = [];
+        let filteredRows = [];
+        let currentPage = 1;
+        const rowsPerPage = 10;
+
+        // ✅ โหลดข้อมูลทั้งหมด
         async function loadHistory() {
             const snap = await get(ref(db, "records"));
             const data = snap.val();
             if (!data) return;
 
-            let rows = [];
+            allRows = [];
 
-            // ✅ Loop ทุก Record
             Object.keys(data).forEach(key => {
                 const item = data[key];
-                rows.push({
+                allRows.push({
                     time: item.timestamp,
                     temp: item.temperature,
                     hum: item.humidity
                 });
             });
 
-            // ✅ เรียงจากใหม่สุด
-            rows.sort((a, b) => b.time - a.time);
+            // ✅ เรียงใหม่ → เก่า
+            allRows.sort((a, b) => b.time - a.time);
 
-            // ✅ จำกัด 100 รายการ (กันเว็บหน่วง)
-            rows = rows.slice(0, 100);
+            filteredRows = [...allRows];
+            renderTable();
+        }
 
-            let tableBody = "";
-            rows.forEach(r => {
+        // ✅ แสดงผลตามหน้า
+        function renderTable() {
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageRows = filteredRows.slice(start, end);
+
+            let html = "";
+            pageRows.forEach(r => {
                 const date = new Date(r.time).toLocaleString();
-                tableBody += `
-                    <tr>
+                const highlight = (r.temp > maxTemp || r.temp < minTemp) ? "style='background:#ffb3b3;'" : "";
+                html += `
+                    <tr ${highlight}>
                         <td>${date}</td>
                         <td>${r.temp}</td>
                         <td>${r.hum}</td>
@@ -139,23 +159,75 @@
                 `;
             });
 
-            document.getElementById("historyBody").innerHTML = tableBody;
+            document.getElementById("historyBody").innerHTML = html;
+            document.getElementById("pageInfo").textContent =
+                `Page ${currentPage} / ${Math.ceil(filteredRows.length / rowsPerPage)}`;
+        }
+
+        // ✅ Pagination Controls
+        window.nextPage = function() {
+            if (currentPage * rowsPerPage < filteredRows.length) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        window.prevPage = function() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        // ✅ Filter by Date
+        window.applyFilter = function() {
+            const start = document.getElementById("startDate").value;
+            const end = document.getElementById("endDate").value;
+
+            filteredRows = allRows.filter(r => {
+                const d = new Date(r.time).toISOString().split("T")[0];
+                return (!start || d >= start) && (!end || d <= end);
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        window.resetFilter = function() {
+            filteredRows = [...allRows];
+            currentPage = 1;
+            renderTable();
+        }
+
+        // ✅ Export CSV
+        window.exportCSV = function() {
+            let csv = "Timestamp,Temperature,Humidity\n";
+            filteredRows.forEach(r => {
+                csv += `${new Date(r.time).toLocaleString()},${r.temp},${r.hum}\n`;
+            });
+
+            const blob = new Blob([csv], { type: "text/csv" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "history_records.csv";
+            link.click();
         }
 
         loadHistory();
-
     </script>
 
 </head>
 <body>
 
     <!-- ✅ Dashboard Cards -->
-    <div class="card" id="tempCard">
-        Temperature: <span id="tempValue">--</span>
-    </div>
+    <div class="card-container">
+        <div class="card" id="tempCard">
+            Temperature: <span id="tempValue">--</span>
+        </div>
 
-    <div class="card" style="background:#007aff;">
-        Humidity: <span id="humValue">--</span>
+        <div class="card" style="background:#007aff;">
+            Humidity: <span id="humValue">--</span>
+        </div>
     </div>
 
     <!-- ✅ MAP -->
@@ -166,8 +238,23 @@
 
     <!-- ✅ History Table -->
     <div class="container">
-        <h3>History (Last 100 Records)</h3>
-        <table>
+        <h3>History Records</h3>
+
+        <!-- ✅ Filter -->
+        <label>Start Date:</label>
+        <input type="date" id="startDate">
+
+        <label>End Date:</label>
+        <input type="date" id="endDate">
+
+        <div class="controls" style="margin-top:10px;">
+            <button onclick="applyFilter()">Filter</button>
+            <button onclick="resetFilter()">Reset</button>
+            <button onclick="exportCSV()">Export CSV</button>
+        </div>
+
+        <!-- ✅ Table -->
+        <table style="margin-top:15px;">
             <thead>
                 <tr>
                     <th>Timestamp</th>
@@ -177,6 +264,13 @@
             </thead>
             <tbody id="historyBody"></tbody>
         </table>
+
+        <!-- ✅ Pagination -->
+        <div style="margin-top:10px;">
+            <button onclick="prevPage()">Prev</button>
+            <span id="pageInfo"></span>
+            <button onclick="nextPage()">Next</button>
+        </div>
     </div>
 
 </body>
