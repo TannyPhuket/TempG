@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColdGuard Dashboard v6</title>
+<title>ColdGuard SPA Dual Axis</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -13,16 +13,16 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { margin:0; font-family:Arial; display:flex; min-height:100vh; background:#1b1b1b; color:#f5f5f5; }
-/* Sidebar */
-.sidebar{width:220px;background:#2c2f33;display:flex;flex-direction:column;padding-top:20px;}
-.sidebar h2{color:#f1c40f;text-align:center;margin-bottom:30px;}
-.sidebar a{color:#ddd;padding:12px 20px;text-decoration:none;display:block;margin-bottom:5px;border-left:4px solid transparent;}
-.sidebar a.active,.sidebar a:hover{background:#3e3e3e;border-left:4px solid #f1c40f;color:#fff;}
-/* Main */
-.main{flex:1;padding:20px;overflow-y:auto;}
+body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
+/* Login */
+#login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
+#login h1{margin-bottom:30px;color:#f1c40f;}
+.role-btn{padding:12px 24px;margin:8px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;color:#1b1b1b;background:#f1c40f;transition:0.3s;}
+.role-btn:hover{background:#e0b90f;}
+/* Dashboard */
+#dashboard{display:none;flex-direction:column;padding:20px;}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-.header h1{font-size:24px;color:#f1c40f;margin:0;}
+.header h1{color:#f1c40f;margin:0;}
 .header button{background:#f1c40f;border:none;padding:8px 16px;cursor:pointer;font-weight:bold;color:#1b1b1b;border-radius:4px;}
 .card-container{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
 .card{flex:1 1 200px;background:#27ae60;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;transition:0.3s;}
@@ -33,28 +33,28 @@ table{width:100%;border-collapse:collapse;background:#2c2f33;color:#fff;border-r
 th,td{padding:10px;border-bottom:1px solid #444;text-align:center;}
 th{background:#3e3e3e;}
 tr.highlight{background:#e74c3c33;}
+tr.newRecord{animation: flash 2s;}
+@keyframes flash {0%{background:#f39c12;}100%{background:transparent;}}
 .controls button{margin-left:8px;padding:6px 12px;border-radius:4px;border:none;background:#f1c40f;color:#1b1b1b;cursor:pointer;}
 input[type="date"],input[type="number"]{padding:5px;border-radius:4px;border:none;margin-right:5px;}
 #settings{margin-top:20px;display:none;}
-@media(max-width:768px){.card-container{flex-direction:column;}.sidebar{width:100%;flex-direction:row;overflow-x:auto;}.sidebar a{flex:1;border-left:none;text-align:center;}body{flex-direction:column;}}
 </style>
 </head>
 <body>
 
-<!-- Sidebar -->
-<div class="sidebar">
-<h2>ColdGuard</h2>
-<a href="#" class="active">Dashboard</a>
-<a href="#live">Live Data</a>
-<a href="#mapSection">Location</a>
-<a href="#historySection">History</a>
-<a href="#settings">Settings</a>
+<!-- Login -->
+<div id="login">
+<h1>ColdGuard Login</h1>
+<p>Select Your Role:</p>
+<button class="role-btn" onclick="loginAs('Seller')">Seller</button>
+<button class="role-btn" onclick="loginAs('Buyer')">Buyer</button>
+<button class="role-btn" onclick="loginAs('Driver')">Driver</button>
 </div>
 
-<!-- Main -->
-<div class="main">
+<!-- Dashboard -->
+<div id="dashboard">
 <div class="header">
-<h1>ColdGuard Monitoring</h1>
+<h1>ColdGuard Monitoring (<span id="roleLabel"></span>)</h1>
 <button onclick="toggleTheme()">Toggle Theme</button>
 </div>
 
@@ -100,7 +100,6 @@ input[type="date"],input[type="number"]{padding:5px;border-radius:4px;border:non
 <h3>Trend Chart (Last 30 Days)</h3>
 <canvas id="trendChart" height="200"></canvas>
 
-<!-- Scripts -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
@@ -118,145 +117,178 @@ appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Role Management
-const role = localStorage.getItem('role') || 'Buyer';
-if(role==='Seller'){ document.getElementById('settings').style.display='block'; }
-
-// Max-Min Temperature
-let maxTemp = parseFloat(document.getElementById('maxTempInput').value);
-let minTemp = parseFloat(document.getElementById('minTempInput').value);
-let alertSentRole = false;
-
-// Permission for Notification
-if("Notification" in window && Notification.permission!=="granted"){Notification.requestPermission();}
-
-// Real-Time Data
-onValue(ref(db,"records/latest"), snap=>{
-    const data=snap.val(); if(!data) return;
-    const temp=data.temperature; const hum=data.humidity;
-    document.getElementById("tempValue").textContent=temp+" °C";
-    document.getElementById("humValue").textContent=hum+" %";
-
-    // Card Warning
-    const tempCard=document.getElementById("tempCard");
-    if(temp>maxTemp||temp<minTemp){ tempCard.className="card danger"; }
-    else{ tempCard.className="card"; }
-
-    // Alert
-    checkAlert(temp);
-
-    // Update Chart
-    loadTrendChart();
-});
-
-// Map
-let map=L.map("map").setView([7.8804,98.3923],13);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-let marker=L.marker([7.8804,98.3923]).addTo(map);
-onValue(ref(db,"records/latest/gps"), snap=>{
-    const gps=snap.val(); if(!gps) return;
-    marker.setLatLng([gps.lat,gps.lng]);
-    map.setView([gps.lat,gps.lng]);
-});
-
-// History Table
+let role='', maxTemp=10, minTemp=2, alertSentRole=false;
+let map, marker, trendChart;
 let allRows=[],filteredRows=[],currentPage=1,rowsPerPage=10;
-async function loadHistory(){
-    const snap=await get(ref(db,"records"));
-    const data=snap.val(); if(!data) return;
-    allRows=[];
-    Object.keys(data).forEach(key=>{
-        const item=data[key];
-        allRows.push({time:item.timestamp,temp:item.temperature,hum:item.humidity});
+let lastTimestamp=0,lastChartTimestamp=0;
+
+// --------------------
+// Login
+window.loginAs = function(r){
+    role = r;
+    localStorage.setItem('role',role);
+    document.getElementById('login').style.display='none';
+    document.getElementById('dashboard').style.display='flex';
+    document.getElementById('roleLabel').textContent=role;
+    if(role==='Seller'){ document.getElementById('settings').style.display='block'; }
+    initDashboard();
+};
+
+// --------------------
+// Dashboard Init
+function initDashboard(){
+    if("Notification" in window && Notification.permission!=="granted"){Notification.requestPermission();}
+    // Map
+    map=L.map("map").setView([7.8804,98.3923],13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+    marker=L.marker([7.8804,98.3923]).addTo(map);
+
+    onValue(ref(db,"records/latest"), snap=>{
+        const data=snap.val(); if(!data) return;
+        const temp=data.temperature; const hum=data.humidity;
+        document.getElementById("tempValue").textContent=temp+" °C";
+        document.getElementById("humValue").textContent=hum+" %";
+        document.getElementById("tempCard").className=(temp>maxTemp||temp<minTemp)?"card danger":"card";
+        checkAlert(temp);
+        loadTrendChart();
     });
+
+    onValue(ref(db,"records/latest/gps"), snap=>{
+        const gps=snap.val(); if(!gps) return;
+        marker.setLatLng([gps.lat,gps.lng]);
+        map.setView([gps.lat,gps.lng]);
+    });
+
+    loadHistory();
+
+    // Auto Refresh Every 10 sec
+    setInterval(()=>{
+        const tempPage=currentPage;
+        loadHistory().then(()=>{ currentPage=tempPage; renderTable(); });
+        loadTrendChart();
+    },10000);
+}
+
+// --------------------
+// Save Settings
+window.saveSettings = function() {
+    const max=parseFloat(document.getElementById('maxTempInput').value);
+    const min=parseFloat(document.getElementById('minTempInput').value);
+    if(max<=min){ alert("Max must be greater than Min"); return; }
+    maxTemp=max; minTemp=min;
+    set(ref(db,"setting/alertTemperature"),{max:maxTemp,min:minTemp})
+      .then(()=>{ alert("Settings saved!"); })
+      .catch(err=>{ alert("Error saving: "+err); });
+};
+
+// --------------------
+// Theme Toggle
+window.toggleTheme = function(){
+    const body=document.body;
+    if(body.style.background==="#f5f5f5"){body.style.background="#1b1b1b";body.style.color="#f5f5f5";}
+    else{body.style.background="#f5f5f5";body.style.color="#1b1b1b";}
+};
+
+// --------------------
+// History Table
+async function loadHistory(){
+    const snap=await get(ref(db,"records")); const data=snap.val(); if(!data) return;
+    allRows=[]; Object.keys(data).forEach(key=>{const item=data[key];allRows.push({time:item.timestamp,temp:item.temperature,hum:item.humidity});});
     allRows.sort((a,b)=>b.time-a.time);
-    if(role==='Driver'){
-        const sevenDaysAgo=new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-7);
-        filteredRows=allRows.filter(r=>new Date(r.time)>=sevenDaysAgo);
-    }else{ filteredRows=[...allRows]; }
-    renderTable();
+    if(role==='Driver'){ const sevenDaysAgo=new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-7); filteredRows=allRows.filter(r=>new Date(r.time)>=sevenDaysAgo);}
+    else{ filteredRows=[...allRows]; }
+    return Promise.resolve();
 }
 function renderTable(){
-    const start=(currentPage-1)*rowsPerPage;
-    const end=start+rowsPerPage;
-    const pageRows=filteredRows.slice(start,end);
-    let html="";
-    pageRows.forEach(r=>{
+    const start=(currentPage-1)*rowsPerPage; const end=start+rowsPerPage; const pageRows=filteredRows.slice(start,end);
+    let html=""; pageRows.forEach(r=>{
         const date=new Date(r.time).toLocaleString();
-        const highlight=(r.temp>maxTemp||r.temp<minTemp)? "class='highlight'":"";
-        html+=`<tr ${highlight}><td>${date}</td><td>${r.temp}</td><td>${r.hum}</td></tr>`;
+        const highlightClass=(r.temp>maxTemp||r.temp<minTemp)?"highlight":"";
+        const newClass=(r.time>lastTimestamp)?"newRecord":"";
+        html+=`<tr class="${highlightClass} ${newClass}"><td>${date}</td><td>${r.temp}</td><td>${r.hum}</td></tr>`;
     });
     document.getElementById("historyBody").innerHTML=html;
     document.getElementById("pageInfo").textContent=`Page ${currentPage} / ${Math.ceil(filteredRows.length/rowsPerPage)}`;
+    // Flash New Record
+    const newRows=document.querySelectorAll("tr.newRecord");
+    newRows.forEach(row=>{ row.style.background="#f39c12"; setTimeout(()=>{row.style.background=""},2000); });
+    if(filteredRows.length>0) lastTimestamp=Math.max(...filteredRows.map(r=>r.time));
 }
 window.nextPage=function(){if(currentPage*rowsPerPage<filteredRows.length){currentPage++;renderTable();}}
 window.prevPage=function(){if(currentPage>1){currentPage--;renderTable();}}
 window.applyFilter=function(){const start=document.getElementById("startDate").value;const end=document.getElementById("endDate").value;
 filteredRows=allRows.filter(r=>{const d=new Date(r.time).toISOString().split("T")[0];return (!start||d>=start)&&(!end||d<=end);});currentPage=1;renderTable();}
 window.resetFilter=function(){filteredRows=[...allRows];currentPage=1;renderTable();}
-window.exportCSV=function(){let csv="Timestamp,Temperature,Humidity\n";filteredRows.forEach(r=>{csv+=`${new Date(r.time).toLocaleString()},${r.temp},${r.hum}\n`;});const blob=new Blob([csv],{type:"text/csv"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="history_records.csv";link.click();}
+window.exportCSV=function(){let csv="Timestamp,Temperature,Humidity\n";filteredRows.forEach(r=>{csv+=`${new Date(r.time).toLocaleString()},${r.temp},${r.hum}\n`;});
+const blob=new Blob([csv],{type:"text/csv"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="history_records.csv";link.click();}
 
-// ----------------------
-// Save Settings (Global)
-// ----------------------
-window.saveSettings = function() {
-    const max = parseFloat(document.getElementById('maxTempInput').value);
-    const min = parseFloat(document.getElementById('minTempInput').value);
-    if(max <= min){ alert("Max must be greater than Min"); return; }
-    maxTemp = max; minTemp = min;
-    set(ref(db, "setting/alertTemperature"), { max: maxTemp, min: minTemp })
-      .then(()=>{ alert("Settings saved!"); })
-      .catch(err=>{ alert("Error saving: "+err); });
-};
-
-// Trend Chart
-let trendChart;
+// --------------------
+// Trend Chart Dual Y-Axis
 async function loadTrendChart(){
-    const snap=await get(ref(db,"records"));
-    const data=snap.val(); if(!data) return;
-    let rows=[];
-    const thirtyDaysAgo=new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
-    Object.keys(data).forEach(key=>{
-        const item=data[key]; const ts=new Date(item.timestamp);
-        if(ts>=thirtyDaysAgo) rows.push({time:ts,temp:item.temperature,hum:item.humidity});
-    });
+    const snap=await get(ref(db,"records")); const data=snap.val(); if(!data) return;
+    let rows=[]; const thirtyDaysAgo=new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+    Object.keys(data).forEach(key=>{const item=data[key]; const ts=new Date(item.timestamp); if(ts>=thirtyDaysAgo) rows.push({time:ts,temp:item.temperature,hum:item.humidity});});
     rows.sort((a,b)=>a.time-b.time);
+
     const labels=rows.map(r=>r.time.toLocaleDateString()+" "+r.time.toLocaleTimeString());
-    const tempData=rows.map(r=>r.temp);
-    const humData=rows.map(r=>r.hum);
+    const tempData=rows.map(r=>r.temp); const humData=rows.map(r=>r.hum);
+
+    // Detect new records for Flash
+    let newIndices=[];
+    rows.forEach((r,i)=>{if(r.time>lastChartTimestamp)newIndices.push(i);});
+
     const ctx=document.getElementById('trendChart').getContext('2d');
     if(trendChart) trendChart.destroy();
     trendChart=new Chart(ctx,{
         type:'line',
         data:{labels:labels,datasets:[
-            {label:'Temperature (°C)',data:tempData,borderColor:'#e74c3c',backgroundColor:'#e74c3c33',fill:true,tension:0.2},
-            {label:'Humidity (%)',data:humData,borderColor:'#f1c40f',backgroundColor:'#f1c40f33',fill:true,tension:0.2}
+            {label:'Temperature (°C)',data:tempData,borderColor:'#e74c3c',backgroundColor:'#e74c3c33',fill:true,tension:0.2,yAxisID:'y1',pointRadius:5,pointHoverRadius:7},
+            {label:'Humidity (%)',data:humData,borderColor:'#f1c40f',backgroundColor:'#f1c40f33',fill:true,tension:0.2,yAxisID:'y2',pointRadius:5,pointHoverRadius:7}
         ]},
-        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},interaction:{mode:'nearest',axis:'x',intersect:false},scales:{x:{display:true,title:{display:true,text:'Date/Time'}},y:{display:true,title:{display:true,text:'Value'}}}}
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            interaction:{mode:'nearest',axis:'x',intersect:false},
+            plugins:{legend:{position:'top'},
+                tooltip:{enabled:true,mode:'nearest',intersect:false,
+                    callbacks:{label:function(context){return context.dataset.label+': '+context.parsed.y+' ('+context.label+')';}},
+                    backgroundColor:'#333',titleColor:'#f1c40f',bodyColor:'#fff',titleFont:{size:14,weight:'bold'},bodyFont:{size:12}
+                }
+            },
+            scales:{
+                y1:{type:'linear',position:'left',display:true,title:{display:true,text:'Temperature (°C)',color:'#f1c40f',font:{size:14}},ticks:{color:'#f5f5f5'}},
+                y2:{type:'linear',position:'right',display:true,title:{display:true,text:'Humidity (%)',color:'#f1c40f',font:{size:14}},ticks:{color:'#f5f5f5'}}
+            },
+            x:{display:true,title:{display:true,text:'Date/Time',color:'#f1c40f',font:{size:14}}}
+        }
     });
+
+    // Flash new points
+    if(newIndices.length>0){
+        const flashDuration=1000;
+        newIndices.forEach(i=>{
+            trendChart.getDatasetMeta(0).data[i].custom={backgroundColor:'#f39c12'};
+            trendChart.getDatasetMeta(1).data[i].custom={backgroundColor:'#f39c12'};
+        });
+        trendChart.update();
+        setTimeout(()=>trendChart.update(),flashDuration);
+    }
+
+    if(rows.length>0) lastChartTimestamp=Math.max(...rows.map(r=>r.time));
 }
 
-// Real-Time Notification
+// --------------------
+// Notification
 function checkAlert(temp){
     const now=new Date();
     if(temp>maxTemp||temp<minTemp){
         if(!alertSentRole && Notification.permission==="granted"){
             let bodyMsg=temp>maxTemp?`Temperature สูงเกิน ${maxTemp}°C`:`Temperature ต่ำกว่า ${minTemp}°C`;
-            new Notification("⚠️ Cold Guard Alert",{body:`[${role}] ${bodyMsg} at ${now.toLocaleString()}`,icon:"https://cdn-icons-png.flaticon.com/512/595/595067.png"});
+            new Notification("⚠️ Cold Guard Alert",{body:`[${role}] ${bodyMsg} at ${now.toLocaleString()}`,icon:"https://cdn-icons-png.flaticon.com/512/595/595067.png`});
             alertSentRole=true;
         }
     }else{alertSentRole=false;}
 }
-
-// Theme Toggle
-function toggleTheme(){
-    const body=document.body;
-    if(body.style.background==="#f5f5f5"){body.style.background="#1b1b1b";body.style.color="#f5f5f5";}
-    else{body.style.background="#f5f5f5";body.style.color="#1b1b1b";}
-}
-
-// Load Initial
-loadHistory();
 </script>
 </body>
 </html>
