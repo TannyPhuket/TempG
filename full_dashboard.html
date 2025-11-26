@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColdGuard SPA Dual Axis</title>
+<title>ColdGuard Full Dashboard</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -14,12 +14,10 @@
 
 <style>
 body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
-/* Login */
 #login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
 #login h1{margin-bottom:30px;color:#f1c40f;}
 .role-btn{padding:12px 24px;margin:8px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;color:#1b1b1b;background:#f1c40f;transition:0.3s;}
 .role-btn:hover{background:#e0b90f;}
-/* Dashboard */
 #dashboard{display:none;flex-direction:column;padding:20px;}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
 .header h1{color:#f1c40f;margin:0;}
@@ -58,16 +56,13 @@ input[type="date"],input[type="number"]{padding:5px;border-radius:4px;border:non
 <button onclick="toggleTheme()">Toggle Theme</button>
 </div>
 
-<!-- Dashboard Cards -->
 <div class="card-container">
 <div class="card" id="tempCard">Temperature: <span id="tempValue">--</span></div>
 <div class="card" id="humCard" style="background:#f1c40f;">Humidity: <span id="humValue">--</span></div>
 </div>
 
-<!-- Map -->
 <div id="map"></div>
 
-<!-- History -->
 <div id="historySection">
 <h3>History Records</h3>
 <label>Start Date:</label><input type="date" id="startDate">
@@ -88,7 +83,6 @@ input[type="date"],input[type="number"]{padding:5px;border-radius:4px;border:non
 </div>
 </div>
 
-<!-- Settings (Seller Only) -->
 <div id="settings">
 <h3>Settings (Seller Only)</h3>
 <label>Max Temp:</label><input type="number" id="maxTempInput" value="10">
@@ -96,7 +90,6 @@ input[type="date"],input[type="number"]{padding:5px;border-radius:4px;border:non
 <button onclick="saveSettings()">Save</button>
 </div>
 
-<!-- Trend Chart -->
 <h3>Trend Chart (Last 30 Days)</h3>
 <canvas id="trendChart" height="200"></canvas>
 
@@ -138,7 +131,6 @@ window.loginAs = function(r){
 // Dashboard Init
 function initDashboard(){
     if("Notification" in window && Notification.permission!=="granted"){Notification.requestPermission();}
-    // Map
     map=L.map("map").setView([7.8804,98.3923],13);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
     marker=L.marker([7.8804,98.3923]).addTo(map);
@@ -150,6 +142,7 @@ function initDashboard(){
         document.getElementById("humValue").textContent=hum+" %";
         document.getElementById("tempCard").className=(temp>maxTemp||temp<minTemp)?"card danger":"card";
         checkAlert(temp);
+        updateMarkerColor(temp);
         loadTrendChart();
     });
 
@@ -170,7 +163,7 @@ function initDashboard(){
 }
 
 // --------------------
-// Save Settings
+// Settings
 window.saveSettings = function() {
     const max=parseFloat(document.getElementById('maxTempInput').value);
     const min=parseFloat(document.getElementById('minTempInput').value);
@@ -182,7 +175,7 @@ window.saveSettings = function() {
 };
 
 // --------------------
-// Theme Toggle
+// Theme
 window.toggleTheme = function(){
     const body=document.body;
     if(body.style.background==="#f5f5f5"){body.style.background="#1b1b1b";body.style.color="#f5f5f5";}
@@ -209,7 +202,6 @@ function renderTable(){
     });
     document.getElementById("historyBody").innerHTML=html;
     document.getElementById("pageInfo").textContent=`Page ${currentPage} / ${Math.ceil(filteredRows.length/rowsPerPage)}`;
-    // Flash New Record
     const newRows=document.querySelectorAll("tr.newRecord");
     newRows.forEach(row=>{ row.style.background="#f39c12"; setTimeout(()=>{row.style.background=""},2000); });
     if(filteredRows.length>0) lastTimestamp=Math.max(...filteredRows.map(r=>r.time));
@@ -229,14 +221,9 @@ async function loadTrendChart(){
     let rows=[]; const thirtyDaysAgo=new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
     Object.keys(data).forEach(key=>{const item=data[key]; const ts=new Date(item.timestamp); if(ts>=thirtyDaysAgo) rows.push({time:ts,temp:item.temperature,hum:item.humidity});});
     rows.sort((a,b)=>a.time-b.time);
-
     const labels=rows.map(r=>r.time.toLocaleDateString()+" "+r.time.toLocaleTimeString());
     const tempData=rows.map(r=>r.temp); const humData=rows.map(r=>r.hum);
-
-    // Detect new records for Flash
-    let newIndices=[];
-    rows.forEach((r,i)=>{if(r.time>lastChartTimestamp)newIndices.push(i);});
-
+    let newIndices=[]; rows.forEach((r,i)=>{if(r.time>lastChartTimestamp)newIndices.push(i);});
     const ctx=document.getElementById('trendChart').getContext('2d');
     if(trendChart) trendChart.destroy();
     trendChart=new Chart(ctx,{
@@ -262,23 +249,12 @@ async function loadTrendChart(){
             x:{display:true,title:{display:true,text:'Date/Time',color:'#f1c40f',font:{size:14}}}
         }
     });
-
-    // Flash new points
-    if(newIndices.length>0){
-        const flashDuration=1000;
-        newIndices.forEach(i=>{
-            trendChart.getDatasetMeta(0).data[i].custom={backgroundColor:'#f39c12'};
-            trendChart.getDatasetMeta(1).data[i].custom={backgroundColor:'#f39c12'};
-        });
-        trendChart.update();
-        setTimeout(()=>trendChart.update(),flashDuration);
-    }
-
+    if(newIndices.length>0){const flashDuration=1000; newIndices.forEach(i=>{trendChart.getDatasetMeta(0).data[i].custom={backgroundColor:'#f39c12'}; trendChart.getDatasetMeta(1).data[i].custom={backgroundColor:'#f39c12'};}); trendChart.update(); setTimeout(()=>trendChart.update(),flashDuration);}
     if(rows.length>0) lastChartTimestamp=Math.max(...rows.map(r=>r.time));
 }
 
 // --------------------
-// Notification
+// Notification & Marker Color
 function checkAlert(temp){
     const now=new Date();
     if(temp>maxTemp||temp<minTemp){
@@ -288,6 +264,10 @@ function checkAlert(temp){
             alertSentRole=true;
         }
     }else{alertSentRole=false;}
+}
+function updateMarkerColor(temp){
+    if(temp>maxTemp||temp<minTemp){marker.setIcon(L.icon({iconUrl:'https://cdn-icons-png.flaticon.com/512/595/595067.png',iconSize:[32,32]}));}
+    else{marker.setIcon(L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41]}));}
 }
 </script>
 </body>
