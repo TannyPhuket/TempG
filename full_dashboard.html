@@ -14,53 +14,33 @@
 
 <style>
 body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
-.center {display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
-.role-btn{padding:12px 24px;margin:8px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;color:#1b1b1b;background:#f1c40f;transition:0.3s;width:200px;}
-.role-btn:hover{background:#e0b90f;}
-#dashboard{display:none;flex-direction:column;padding:20px;}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-.header h1{color:#fff;margin:0;}
-.logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#fff;}
-.logout-btn:hover{opacity:0.7;}
-
-.card-container{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
+.header{display:flex;justify-content:space-between;align-items:center;padding:20px;}
+.header h1{color:#f1c40f;margin:0;}
+.logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#f1c40f;}
+.card-container{display:flex;gap:20px;flex-wrap:wrap;padding:0 20px;margin-bottom:20px;}
 .card{flex:1 1 200px;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;}
-.card.danger{background:#e74c3c;}
-#map{height:350px;border-radius:12px;margin-bottom:20px;}
-table{width:100%;border-collapse:collapse;background:#2c2f33;color:#fff;border-radius:8px;overflow:hidden;}
-th,td{padding:10px;border-bottom:1px solid #444;text-align:center;}
-th{background:#3e3e3e;}
+#map{height:350px;border-radius:12px;margin:0 20px 20px 20px;}
+.seller { background:#f39c12; color:#111; }
+.buyer { background:#2ecc71; color:#111; }
+.driver { background:#3498db; color:#fff; }
 </style>
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
-<div id="login" class="center">
-<h1 style="color:#f1c40f;">ColdGuard Login</h1>
-<button class="role-btn" onclick="loginAs('Seller')">Seller</button>
-<button class="role-btn" onclick="loginAs('Buyer')">Buyer</button>
-<button class="role-btn" onclick="loginAs('Driver')">Driver</button>
-</div>
-
-<!-- DASHBOARD -->
-<div id="dashboard">
-
 <div class="header">
-<h1>ColdGuard (<span id="roleLabel"></span>)</h1>
-<button class="logout-btn" onclick="logout()" title="Logout">🚪</button>
+<h1>ColdGuard Dashboard (<span id="roleLabel"></span>)</h1>
+<button class="logout-btn" onclick="logout()">🚪</button>
 </div>
 
 <div class="card-container">
-<div class="card" id="tempCard">Temperature: <span id="tempValue">--</span></div>
-<div class="card" id="humCard">Humidity: <span id="humValue">--</span></div>
+<div class="card seller" id="tempCard">Temperature: <span id="tempValue">--</span></div>
+<div class="card seller" id="humCard">Humidity: <span id="humValue">--</span></div>
 </div>
 
 <div id="map"></div>
 
-<h3>Trend Chart</h3>
-<canvas id="trendChart" height="200"></canvas>
-
-</div>
+<h3 style="padding:0 20px;">Trend Chart</h3>
+<canvas id="trendChart" height="200" style="margin:0 20px;"></canvas>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
@@ -79,74 +59,41 @@ appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let role = null; // ไม่โหลดจาก localStorage เพื่อให้ Login แสดงทุกครั้ง
+// ✅ ตรวจสอบ role
+let role = localStorage.getItem('role');
+if(!role) window.location.href = 'login.html'; // ถ้าไม่มี role ให้กลับไปหน้า login
 
-// สีของแต่ละบทบาท
-const roleColors = {
-    Seller: '#f39c12',
-    Buyer: '#2ecc71',
-    Driver: '#3498db'
-};
+document.getElementById('roleLabel').textContent = role;
 
-// ✅ Login
-window.loginAs = function(r){
-    role = r;
-    localStorage.setItem('role', r);
-    showDashboard();
-};
+// เปลี่ยนสี card ตามบทบาท
+const tempCard = document.getElementById('tempCard');
+const humCard = document.getElementById('humCard');
+if(role==='Seller'){ tempCard.className='card seller'; humCard.className='card seller'; }
+else if(role==='Buyer'){ tempCard.className='card buyer'; humCard.className='card buyer'; }
+else if(role==='Driver'){ tempCard.className='card driver'; humCard.className='card driver'; }
 
 // ✅ Logout
 window.logout = function(){
-    role = null;
     localStorage.removeItem('role');
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('login').style.display = 'flex';
-};
-
-// ✅ Show Dashboard UI
-function showDashboard(){
-    document.getElementById('login').style.display='none';
-    document.getElementById('dashboard').style.display='flex';
-    document.getElementById('roleLabel').textContent = role;
-
-    // เปลี่ยนสี Dashboard ตามบทบาท
-    const color = roleColors[role] || '#1b1b1b';
-    document.body.style.background = color;
-    document.getElementById('dashboard').style.background = color;
-
-    // เปลี่ยนสี card หลัก
-    document.getElementById('tempCard').style.background = color;
-    document.getElementById('humCard').style.background = color;
-
-    initDashboard();
+    window.location.href = 'login.html';
 }
 
-// ✅ Dashboard Logic
-let map, marker, chart;
+// Dashboard Map & Firebase
+let map = L.map("map").setView([7.8804,98.3923],13);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+let marker = L.marker([7.8804,98.3923]).addTo(map);
 
-function initDashboard(){
-    if(map) return; // ป้องกัน init ซ้ำ
-    map=L.map("map").setView([7.8804,98.3923],13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-    marker=L.marker([7.8804,98.3923]).addTo(map);
-
-    onValue(ref(db,"records/latest"), snap=>{
-        const data=snap.val(); if(!data) return;
-        const temp=data.temperature, hum=data.humidity;
-        document.getElementById("tempValue").textContent=temp+" °C";
-        document.getElementById("humValue").textContent=hum+" %";
-        // สี danger ถ้าอุณหภูมินอกช่วง
-        if(role==='Seller'){ // Seller เน้น alert
-            document.getElementById("tempCard").className=(temp>10||temp<2)?"card danger":"card";
-        }
-    });
-
-    onValue(ref(db,"records/latest/gps"), snap=>{
-        const gps=snap.val(); if(!gps) return;
-        marker.setLatLng([gps.lat,gps.lng]);
-        map.setView([gps.lat,gps.lng]);
-    });
-}
+onValue(ref(db,"records/latest"), snap=>{
+    const data = snap.val(); if(!data) return;
+    const temp = data.temperature, hum = data.humidity;
+    document.getElementById("tempValue").textContent=temp+" °C";
+    document.getElementById("humValue").textContent=hum+" %";
+});
+onValue(ref(db,"records/latest/gps"), snap=>{
+    const gps = snap.val(); if(!gps) return;
+    marker.setLatLng([gps.lat,gps.lng]);
+    map.setView([gps.lat,gps.lng]);
+});
 </script>
 
 </body>
