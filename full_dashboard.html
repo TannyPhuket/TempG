@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ColdGuard Full Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColdGuard Dashboard</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -13,493 +13,131 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-  :root{
-    --bg:#1b1b1b; --card:#27ae60; --accent:#f1c40f; --danger:#e74c3c;
-    --panel:#2c2f33; --muted:#f5f5f5;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:var(--muted);}
-  /* Login */
-  #login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:12px}
-  #login h1{color:var(--accent);margin:0 0 4px 0}
-  .role-btn{padding:12px 28px;border-radius:8px;border:0;font-weight:700;cursor:pointer;color:#111;background:var(--accent)}
-  .role-btn.seller{background:#e74c3c;color:#fff}
-  .role-btn.buyer{background:#3498db;color:#fff}
-  .role-btn.driver{background:#2ecc71;color:#fff}
-  /* Dashboard */
-  #dashboard{display:none;min-height:100vh;padding:18px;gap:16px;flex-direction:column;display:flex}
-  .header{display:flex;justify-content:space-between;align-items:center;gap:12px}
-  .header h1{color:var(--accent);margin:0}
-  .btn{background:var(--accent);border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:700}
-  .card-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
-  .card{flex:1 1 220px;background:var(--card);padding:18px;border-radius:12px;color:#fff;font-weight:700;text-align:center}
-  .card.hum{background:var(--accent);color:#111}
-  .card.danger{background:var(--danger)}
-  #map{height:340px;border-radius:12px;margin-top:14px}
-  .panel{background:var(--panel);padding:14px;border-radius:10px;margin-top:14px}
-  table{width:100%;border-collapse:collapse;background:transparent;color:var(--muted);border-radius:8px;overflow:hidden}
-  th,td{padding:10px;border-bottom:1px solid #444;text-align:center}
-  th{background:#3e3e3e}
-  tr.highlight{background:rgba(231,76,60,0.15)}
-  tr.newRecord{animation:flash 2s}
-  @keyframes flash{0%{background:#f39c12}100%{background:transparent}}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  input[type="date"],input[type="number"]{padding:6px;border-radius:6px;border:0}
-  @media(max-width:800px){ .card-row{flex-direction:column} }
+body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
+.center {display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;}
+.role-btn{padding:12px 24px;margin:8px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;color:#1b1b1b;background:#f1c40f;transition:0.3s;width:200px;}
+.role-btn:hover{background:#e0b90f;}
+#dashboard{display:none;flex-direction:column;padding:20px;}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.header h1{color:#f1c40f;margin:0;}
+.logout-btn{
+    background:none;
+    border:none;
+    font-size:22px;
+    cursor:pointer;
+    color:#f1c40f;
+}
+.logout-btn:hover{opacity:0.7;}
+
+.card-container{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
+.card{flex:1 1 200px;background:#27ae60;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;}
+.card.danger{background:#e74c3c;}
+#map{height:350px;border-radius:12px;margin-bottom:20px;}
+table{width:100%;border-collapse:collapse;background:#2c2f33;color:#fff;border-radius:8px;overflow:hidden;}
+th,td{padding:10px;border-bottom:1px solid #444;text-align:center;}
+th{background:#3e3e3e;}
 </style>
 </head>
 <body>
 
-<!-- Login -->
-<section id="login">
-  <h1>ColdGuard Login</h1>
-  <p>Select role to continue</p>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-    <button class="role-btn seller" onclick="loginAs('Seller')">Seller</button>
-    <button class="role-btn buyer" onclick="loginAs('Buyer')">Buyer</button>
-    <button class="role-btn driver" onclick="loginAs('Driver')">Driver</button>
-  </div>
-  <small style="opacity:.8;margin-top:10px">No password — demo login only</small>
-</section>
+<!-- LOGIN SCREEN -->
+<div id="login" class="center">
+<h1 style="color:#f1c40f;">ColdGuard Login</h1>
+<button class="role-btn" onclick="loginAs('Seller')">Seller</button>
+<button class="role-btn" onclick="loginAs('Buyer')">Buyer</button>
+<button class="role-btn" onclick="loginAs('Driver')">Driver</button>
+</div>
 
-<!-- Dashboard -->
-<section id="dashboard" style="display:none">
-  <div class="header">
-    <h1>ColdGuard Monitoring — <span id="roleLabel">Guest</span></h1>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn" onclick="logout()">Logout</button>
-      <button class="btn" onclick="toggleTheme()">Toggle Theme</button>
-    </div>
-  </div>
+<!-- DASHBOARD -->
+<div id="dashboard">
 
-  <div class="card-row">
-    <div class="card" id="tempCard">Temperature: <span id="tempValue">-- °C</span></div>
-    <div class="card hum" id="humCard">Humidity: <span id="humValue">-- %</span></div>
-  </div>
+<div class="header">
+<h1>ColdGuard (<span id="roleLabel"></span>)</h1>
 
-  <div id="map"></div>
+<!-- ✅ Logout Icon -->
+<button class="logout-btn" onclick="logout()" title="Logout">🚪</button>
+</div>
 
-  <div class="panel" id="historyPanel">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h3 style="margin:0">History Records</h3>
-      <div class="controls">
-        <label>Start</label><input type="date" id="startDate">
-        <label>End</label><input type="date" id="endDate">
-        <button class="btn" onclick="applyFilter()">Filter</button>
-        <button class="btn" onclick="resetFilter()">Reset</button>
-        <button class="btn" onclick="exportCSV()">Export CSV</button>
-      </div>
-    </div>
+<div class="card-container">
+<div class="card" id="tempCard">Temperature: <span id="tempValue">--</span></div>
+<div class="card" id="humCard" style="background:#f1c40f;">Humidity: <span id="humValue">--</span></div>
+</div>
 
-    <div style="margin-top:12px;overflow-x:auto">
-      <table>
-        <thead>
-          <tr><th>Timestamp</th><th>Temperature (°C)</th><th>Humidity (%)</th></tr>
-        </thead>
-        <tbody id="historyBody"></tbody>
-      </table>
-    </div>
+<div id="map"></div>
 
-    <div style="display:flex;justify-content:center;gap:8px;margin-top:10px">
-      <button class="btn" onclick="prevPage()">Prev</button>
-      <div id="pageInfo" style="align-self:center"></div>
-      <button class="btn" onclick="nextPage()">Next</button>
-    </div>
-  </div>
+<h3>Trend Chart</h3>
+<canvas id="trendChart" height="200"></canvas>
 
-  <div id="settings" class="panel" style="display:none;margin-top:14px">
-    <h3 style="margin-top:0">Settings (Seller only)</h3>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <label>Max Temp</label><input type="number" id="maxTempInput" value="10">
-      <label>Min Temp</label><input type="number" id="minTempInput" value="2">
-      <button class="btn" onclick="saveSettings()">Save</button>
-      <label style="opacity:.9;margin-left:8px"><input type="checkbox" id="enableAlert" checked> Enable alert</label>
-    </div>
-  </div>
-
-  <div class="panel" style="margin-top:14px">
-    <h3 style="margin:0 0 8px 0">Trend Chart (Last 30 days)</h3>
-    <canvas id="trendChart" height="200"></canvas>
-  </div>
-</section>
+</div>
 
 <script type="module">
-/* ============================
-   Firebase + App
-   ============================ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getDatabase, ref, onValue, get, set } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-/* --- Firebase config: ใช้ของคุณ --- */
+// Firebase Config
 const firebaseConfig = {
-  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-  authDomain: "temperature-cold-guard.firebaseapp.com",
-  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "temperature-cold-guard",
-  storageBucket: "temperature-cold-guard.firebasestorage.app",
-  messagingSenderId: "29693405672",
-  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+authDomain: "temperature-cold-guard.firebaseapp.com",
+databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "temperature-cold-guard",
+storageBucket: "temperature-cold-guard.firebasestorage.app",
+messagingSenderId: "29693405672",
+appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ============================
-   App state
-   ============================ */
-window.role = localStorage.getItem('role') || ''; // global role
-let maxTemp = parseFloat(document.getElementById('maxTempInput').value) || 10;
-let minTemp = parseFloat(document.getElementById('minTempInput').value) || 2;
-let alertSentRole = false;
-let map, marker, trendChart;
-let allRows = [], filteredRows = [], currentPage = 1, rowsPerPage = 10;
-let lastTimestamp = 0, lastChartTimestamp = 0;
+let role = localStorage.getItem('role');
 
-/* Auto-login if role saved */
-if(window.role){
-  document.getElementById('login').style.display='none';
-  document.getElementById('dashboard').style.display='flex';
-  document.getElementById('roleLabel').textContent = window.role;
-  if(window.role === 'Seller') document.getElementById('settings').style.display='block';
-  initDashboard();
+// ✅ Auto-load dashboard if logged in
+if(role){
+    showDashboard();
 }
 
-/* ============================
-   Login / Logout
-   ============================ */
+// ✅ Login
 window.loginAs = function(r){
-  window.role = r;
-  localStorage.setItem('role', r);
-  document.getElementById('login').style.display='none';
-  document.getElementById('dashboard').style.display='flex';
-  document.getElementById('roleLabel').textContent = r;
-  if(r === 'Seller') document.getElementById('settings').style.display='block';
-  initDashboard();
+    localStorage.setItem('role', r);
+    role = r;
+    showDashboard();
 };
 
+// ✅ Logout Button
 window.logout = function(){
-  localStorage.removeItem('role');
-  window.role = '';
-  // destroy chart & map if exist
-  if(trendChart) { trendChart.destroy(); trendChart = null; }
-  if(map) { map.remove(); map = null; }
-  // show login
-  document.getElementById('dashboard').style.display='none';
-  document.getElementById('login').style.display='flex';
+    localStorage.removeItem('role');
+    location.reload();
 };
 
-/* ============================
-   Init Dashboard
-   ============================ */
+// ✅ Show Dashboard UI
+function showDashboard(){
+    document.getElementById('login').style.display='none';
+    document.getElementById('dashboard').style.display='flex';
+    document.getElementById('roleLabel').textContent = role;
+    initDashboard();
+}
+
+// ✅ Dashboard Logic
+let map, marker, chart;
+
 function initDashboard(){
-  // permissions
-  if("Notification" in window && Notification.permission !== "granted"){
-    Notification.requestPermission().catch(()=>{});
-  }
+    map=L.map("map").setView([7.8804,98.3923],13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+    marker=L.marker([7.8804,98.3923]).addTo(map);
 
-  // initialize map once
-  if(!map){
-    map = L.map('map').setView([7.8804,98.3923], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-    marker = L.marker([7.8804,98.3923]).addTo(map);
-  }
-
-  // realtime latest record
-  onValue(ref(db,'records/latest'), snap => {
-    const data = snap.val();
-    if(!data) return;
-    const temp = Number(data.temperature);
-    const hum = Number(data.humidity);
-    document.getElementById('tempValue').textContent = `${temp} °C`;
-    document.getElementById('humValue').textContent = `${hum} %`;
-
-    // card color
-    document.getElementById('tempCard').className = (temp > maxTemp || temp < minTemp) ? 'card danger' : 'card';
-
-    // marker color + animation
-    updateMarkerColor(temp);
-
-    // alert
-    const isAlertEnabled = document.getElementById('enableAlert') ? document.getElementById('enableAlert').checked : true;
-    if(isAlertEnabled) checkAlert(temp);
-
-    // update chart
-    loadTrendChart();
-  });
-
-  // GPS live
-  onValue(ref(db,'records/latest/gps'), snap => {
-    const gps = snap.val();
-    if(!gps) return;
-    const lat = Number(gps.lat), lng = Number(gps.lng);
-    marker.setLatLng([lat, lng]);
-    map.setView([lat, lng]);
-  });
-
-  // initial load history & chart
-  loadHistory().then(()=>{ renderTable(); loadTrendChart(); });
-
-  // auto refresh: update history & chart every 10s
-  setInterval(async ()=>{
-    const tmpPage = currentPage;
-    await loadHistory();
-    currentPage = tmpPage;
-    renderTable();
-    await loadTrendChart();
-  }, 10000);
-}
-
-/* ============================
-   Settings
-   ============================ */
-window.saveSettings = function(){
-  const max = parseFloat(document.getElementById('maxTempInput').value);
-  const min = parseFloat(document.getElementById('minTempInput').value);
-  if(isNaN(max) || isNaN(min) || max <= min){
-    alert('Max must be greater than Min and valid numbers');
-    return;
-  }
-  maxTemp = max; minTemp = min;
-  // write to firebase
-  set(ref(db,'setting/alertTemperature'), { max:maxTemp, min:minTemp })
-    .then(()=>{ alert('Settings saved'); })
-    .catch(err=>{ console.error(err); alert('Save error: '+err); });
-};
-
-/* ============================
-   Theme
-   ============================ */
-window.toggleTheme = function(){
-  const body = document.body;
-  if(body.style.background === 'white'){
-    body.style.background = 'var(--bg)';
-    body.style.color = 'var(--muted)';
-  } else {
-    body.style.background = 'white';
-    body.style.color = '#111';
-  }
-};
-
-/* ============================
-   History Table
-   ============================ */
-async function loadHistory(){
-  const snap = await get(ref(db,'records'));
-  const data = snap.val();
-  if(!data){ allRows = []; filteredRows = []; return; }
-
-  allRows = [];
-  Object.keys(data).forEach(k => {
-    const it = data[k];
-    // ensure timestamp numeric (if stored as ISO string, convert)
-    let t = it.timestamp;
-    // if t looks like ISO string, date parse
-    if(typeof t === 'string' && isNaN(Number(t))){
-      t = new Date(t).getTime();
-    }
-    allRows.push({ time: Number(t), temp: Number(it.temperature), hum: Number(it.humidity) });
-  });
-
-  // sort newest first
-  allRows.sort((a,b)=>b.time - a.time);
-
-  // role filter: Driver -> last 7 days
-  if(window.role === 'Driver'){
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    filteredRows = allRows.filter(r => r.time >= sevenDaysAgo);
-  } else {
-    filteredRows = [...allRows];
-  }
-  return Promise.resolve();
-}
-
-function renderTable(){
-  const start = (currentPage-1) * rowsPerPage;
-  const pageRows = filteredRows.slice(start, start + rowsPerPage);
-
-  let html = '';
-  pageRows.forEach(r=>{
-    const date = new Date(r.time).toLocaleString();
-    const highlight = (r.temp > maxTemp || r.temp < minTemp) ? 'highlight' : '';
-    const newClass = (r.time > lastTimestamp) ? 'newRecord' : '';
-    html += `<tr class="${highlight} ${newClass}"><td>${date}</td><td>${r.temp}</td><td>${r.hum}</td></tr>`;
-  });
-
-  document.getElementById('historyBody').innerHTML = html;
-  document.getElementById('pageInfo').textContent = `Page ${currentPage} / ${Math.max(1, Math.ceil(filteredRows.length / rowsPerPage))}`;
-
-  // flash new rows briefly
-  const newRows = document.querySelectorAll('tr.newRecord');
-  newRows.forEach(row=>{
-    row.style.background = '#f39c12';
-    setTimeout(()=>{ row.style.background = ''; }, 2000);
-  });
-
-  if(filteredRows.length > 0){
-    lastTimestamp = Math.max(...filteredRows.map(r=>r.time));
-  }
-}
-
-window.nextPage = function(){ if(currentPage * rowsPerPage < filteredRows.length){ currentPage++; renderTable(); } }
-window.prevPage = function(){ if(currentPage > 1){ currentPage--; renderTable(); } }
-
-window.applyFilter = function(){
-  const s = document.getElementById('startDate').value;
-  const e = document.getElementById('endDate').value;
-  if(!s && !e){ filteredRows = [...allRows]; currentPage = 1; renderTable(); return; }
-  filteredRows = allRows.filter(r=>{
-    const d = new Date(r.time).toISOString().split('T')[0];
-    return (!s || d >= s) && (!e || d <= e);
-  });
-  currentPage = 1; renderTable();
-};
-
-window.resetFilter = function(){ filteredRows = [...allRows]; currentPage = 1; renderTable(); };
-
-window.exportCSV = function(){
-  let csv = 'Timestamp,Temperature,Humidity\n';
-  filteredRows.forEach(r => {
-    csv += `"${new Date(r.time).toLocaleString()}",${r.temp},${r.hum}\n`;
-  });
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'history_records.csv';
-  a.click();
-};
-
-/* ============================
-   Trend Chart (Dual Y-Axis)
-   ============================ */
-async function loadTrendChart(){
-  const snap = await get(ref(db,'records'));
-  const data = snap.val();
-  if(!data) return;
-
-  const rows = [];
-  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-  Object.keys(data).forEach(k=>{
-    const it = data[k];
-    let t = it.timestamp;
-    if(typeof t === 'string' && isNaN(Number(t))) t = new Date(t).getTime();
-    t = Number(t);
-    if(t >= thirtyDaysAgo){
-      rows.push({ time: t, temp: Number(it.temperature), hum: Number(it.humidity) });
-    }
-  });
-
-  rows.sort((a,b)=>a.time - b.time);
-  const labels = rows.map(r => new Date(r.time).toLocaleString());
-  const tempData = rows.map(r => r.temp);
-  const humData = rows.map(r => r.hum);
-
-  // find new indices (for flash)
-  const newIndices = [];
-  rows.forEach((r,i)=>{ if(r.time > lastChartTimestamp) newIndices.push(i); });
-
-  const ctx = document.getElementById('trendChart').getContext('2d');
-  if(trendChart) trendChart.destroy();
-
-  trendChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Temperature (°C)', data: tempData, borderColor:'#e74c3c', backgroundColor:'#e74c3c33', yAxisID:'y1', fill:true, tension:0.2, pointRadius:4, pointHoverRadius:6 },
-        { label: 'Humidity (%)', data: humData, borderColor:'#f1c40f', backgroundColor:'#f1c40f33', yAxisID:'y2', fill:true, tension:0.2, pointRadius:4, pointHoverRadius:6 }
-      ]
-    },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      interaction:{ mode:'nearest', axis:'x', intersect:false },
-      plugins:{
-        legend:{ position:'top' },
-        tooltip:{
-          enabled:true, mode:'nearest', intersect:false,
-          callbacks:{
-            label: function(ctx){
-              return `${ctx.dataset.label}: ${ctx.parsed.y} (${ctx.label})`;
-            }
-          },
-          backgroundColor:'#333', titleColor: '#f1c40f', bodyColor:'#fff'
-        }
-      },
-      scales:{
-        y1:{ type:'linear', position:'left', title:{display:true,text:'Temperature (°C)',color:'#f1c40f'} },
-        y2:{ type:'linear', position:'right', title:{display:true,text:'Humidity (%)',color:'#f1c40f'}, grid:{drawOnChartArea:false} },
-        x:{ title:{display:true,text:'Date/Time',color:'#f1c40f'} }
-      }
-    }
-  });
-
-  // flash new points briefly
-  if(newIndices.length){
-    const flashDuration = 1000;
-    newIndices.forEach(i=>{
-      if(trendChart.getDatasetMeta(0).data[i]) trendChart.getDatasetMeta(0).data[i].custom = { backgroundColor:'#f39c12' };
-      if(trendChart.getDatasetMeta(1).data[i]) trendChart.getDatasetMeta(1).data[i].custom = { backgroundColor:'#f39c12' };
+    onValue(ref(db,"records/latest"), snap=>{
+        const data=snap.val(); if(!data) return;
+        const temp=data.temperature, hum=data.humidity;
+        document.getElementById("tempValue").textContent=temp+" °C";
+        document.getElementById("humValue").textContent=hum+" %";
+        document.getElementById("tempCard").className=(temp>10||temp<2)?"card danger":"card";
     });
-    trendChart.update();
-    setTimeout(()=>{ trendChart.update(); }, flashDuration);
-  }
 
-  if(rows.length) lastChartTimestamp = Math.max(...rows.map(r=>r.time));
-}
-
-/* ============================
-   Notifications + Marker
-   ============================ */
-function checkAlert(temp){
-  const now = new Date();
-  const enabled = document.getElementById('enableAlert') ? document.getElementById('enableAlert').checked : true;
-  if(!enabled) return;
-
-  if(temp > maxTemp || temp < minTemp){
-    if(!alertSentRole && Notification.permission === 'granted'){
-      const bodyMsg = temp > maxTemp ? `Temperature above ${maxTemp}°C` : `Temperature below ${minTemp}°C`;
-      new Notification('⚠️ Cold Guard Alert', {
-        body: `[${window.role}] ${bodyMsg} at ${now.toLocaleString()}`,
-        icon: 'https://cdn-icons-png.flaticon.com/512/595/595067.png'
-      });
-      alertSentRole = true;
-    }
-  } else {
-    alertSentRole = false;
-  }
-}
-
-function updateMarkerColor(temp){
-  if(!marker) return;
-  if(temp > maxTemp || temp < minTemp){
-    const dangerIcon = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/595/595067.png', iconSize:[36,36], iconAnchor:[18,36] });
-    marker.setIcon(dangerIcon);
-  } else {
-    // default leaflet marker icon from CDN
-    const defaultIcon = L.icon({
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      iconSize: [25,41],
-      iconAnchor:[12,41],
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      shadowSize:[41,41]
+    onValue(ref(db,"records/latest/gps"), snap=>{
+        const gps=snap.val(); if(!gps) return;
+        marker.setLatLng([gps.lat,gps.lng]);
+        map.setView([gps.lat,gps.lng]);
     });
-    marker.setIcon(defaultIcon);
-  }
 }
-
-/* ============================
-   Utility: ensure dashboard protected if no role
-   ============================ */
-window.addEventListener('load', ()=>{
-  // if user opens dashboard directly (no role) redirect to login view
-  if(!window.role){
-    document.getElementById('dashboard').style.display='none';
-    document.getElementById('login').style.display='flex';
-  }
-});
-
-/* ============================
-   End module
-   ============================ */
 </script>
+
 </body>
 </html>
