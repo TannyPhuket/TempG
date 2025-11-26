@@ -9,18 +9,21 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
-header {padding:15px;text-align:center;font-size:24px;font-weight:bold;}
+header {padding:15px;text-align:center;font-size:24px;font-weight:bold;color:#fff;}
 #dashboard{padding:20px;}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
 .logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#f1c40f;}
 .cards{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
-.card{flex:1 1 200px;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;}
-#map{height:300px;border-radius:12px;margin-bottom:20px;}
+.card{flex:1 1 200px;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;transition:0.3s;}
+#map, #trendChartContainer{height:350px;border-radius:12px;margin-bottom:20px;}
 #sellerSettings{background:#fff;color:#000;padding:15px;border-radius:10px;margin-bottom:20px;}
 .hidden{display:none;}
-.alertSound{display:none;}
+.toggle-btn{padding:8px 16px;margin:5px;background:#34495e;color:#fff;border:none;border-radius:5px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -29,7 +32,6 @@ header {padding:15px;text-align:center;font-size:24px;font-weight:bold;}
 <button class="logout-btn" onclick="logout()">🚪 Logout</button>
 
 <div id="dashboard">
-
   <p><b>Role:</b> <span id="roleLabel"></span></p>
 
   <!-- Seller Only Settings -->
@@ -40,17 +42,25 @@ header {padding:15px;text-align:center;font-size:24px;font-weight:bold;}
     <button onclick="saveTempSettings()">Save</button>
   </div>
 
+  <!-- Cards -->
   <div class="cards">
     <div class="card" id="tempCard">Temperature: -- °C</div>
     <div class="card" id="humCard">Humidity: -- %</div>
     <div class="card" id="statusCard">Status: --</div>
   </div>
 
-  <div id="map"></div>
+  <!-- Toggle Map/Chart -->
+  <button class="toggle-btn" onclick="showMap()">Show Map</button>
+  <button class="toggle-btn" onclick="showTrend()">Show Trend</button>
 
+  <!-- Map & Trend Chart -->
+  <div id="map"></div>
+  <div id="trendChartContainer" class="hidden">
+    <canvas id="trendChart"></canvas>
+  </div>
 </div>
 
-<audio id="alertAudio" src="https://actions.google.com/sounds/v1/cartoon/minion_laugh.ogg" class="alertSound"></audio>
+<audio id="alertAudio" src="https://actions.google.com/sounds/v1/cartoon/minion_laugh.ogg"></audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
@@ -69,32 +79,25 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ✅ Check login
+// Check login
 const role = localStorage.getItem('role');
-if(!role){
-  window.location.href = 'login.html';
-}
+if(!role){ window.location.href='login.html'; }
 document.getElementById('roleLabel').innerText = role;
 
 // Theme colors
 const roleColors = {Seller:'#f39c12', Buyer:'#2ecc71', Driver:'#3498db'};
 document.getElementById('header').style.backgroundColor = roleColors[role];
+document.getElementById('tempCard').style.backgroundColor = roleColors[role];
+document.getElementById('humCard').style.backgroundColor = roleColors[role];
+document.getElementById('statusCard').style.backgroundColor = roleColors[role];
 
 // Seller settings
-if(role==='Seller'){
-  document.getElementById('sellerSettings').classList.remove('hidden');
-}
-
-// Logout
-function logout(){
-  localStorage.removeItem('role');
-  window.location.href='login.html';
-}
-
-// Temperature alert
 let alertMin = null;
 let alertMax = null;
+if(role==='Seller'){ document.getElementById('sellerSettings').classList.remove('hidden'); }
 
+// Logout
+function logout(){ localStorage.removeItem('role'); window.location.href='login.html'; }
 function saveTempSettings(){
   alertMin = Number(document.getElementById('minTemp').value);
   alertMax = Number(document.getElementById('maxTemp').value);
@@ -106,36 +109,55 @@ const map = L.map('map').setView([13.736717,100.523186],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 let marker = null;
 
-// Load latest records
-const recordsRef = ref(db,'records/latest');
-onValue(recordsRef,snap=>{
+// Trend Chart
+const ctx = document.getElementById('trendChart').getContext('2d');
+let chart = new Chart(ctx, {
+    type:'line',
+    data:{labels:[],datasets:[{label:'Temperature',data:[],borderColor:'#e67e22',fill:false}]} ,
+    options:{responsive:true,animation:false,scales:{y:{beginAtZero:false}}}
+});
+
+// Toggle
+function showMap(){document.getElementById('map').classList.remove('hidden'); document.getElementById('trendChartContainer').classList.add('hidden');}
+function showTrend(){document.getElementById('trendChartContainer').classList.remove('hidden'); document.getElementById('map').classList.add('hidden');}
+
+// Load latest record
+const recordsRef = ref(db,'records');
+onValue(recordsRef, snap=>{
   const data = snap.val();
   if(!data) return;
-  const temp = data.temperature;
-  const hum = data.humidity;
-  const status = data.status || 'OK';
+  const entries = Object.entries(data).sort((a,b)=>new Date(a[0]) - new Date(b[0]));
+  const latest = entries[entries.length-1][1];
+
+  const temp = latest.temperature;
+  const hum = latest.humidity;
+  const status = latest.status || 'OK';
+
+  // Update cards
   document.getElementById('tempCard').textContent = `Temperature: ${temp} °C`;
   document.getElementById('humCard').textContent = `Humidity: ${hum} %`;
   document.getElementById('statusCard').textContent = `Status: ${status}`;
 
-  // Color temp card based on alert
+  // Seller alert
   if(role==='Seller' && alertMin!==null && alertMax!==null && (temp<alertMin || temp>alertMax)){
     document.getElementById('tempCard').style.backgroundColor = '#e74c3c';
     document.getElementById('alertAudio').play();
-  } else {
-    document.getElementById('tempCard').style.backgroundColor = roleColors[role];
-  }
+  } else { document.getElementById('tempCard').style.backgroundColor = roleColors[role]; }
 
-  // Update map
-  if(data.gps){
-    const lat = data.gps.lat;
-    const lng = data.gps.lng;
+  // Map visible for Driver and Buyer
+  if(latest.gps){
+    const lat = latest.gps.lat;
+    const lng = latest.gps.lng;
     if(!marker) marker = L.marker([lat,lng]).addTo(map);
     else marker.setLatLng([lat,lng]);
-    map.setView([lat,lng]);
+    map.setView([lat,lng],13);
   }
+
+  // Update trend chart
+  chart.data.labels = entries.map(e=>e[0]);
+  chart.data.datasets[0].data = entries.map(e=>e[1].temperature);
+  chart.update();
 });
 </script>
-
 </body>
 </html>
