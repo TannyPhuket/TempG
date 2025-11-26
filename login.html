@@ -5,28 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ColdGuard Login</title>
 <style>
-body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;}
-h1 {color:#f1c40f;}
-.role-btn{padding:12px 24px;margin:8px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;color:#1b1b1b;background:#f1c40f;transition:0.3s;width:200px;}
-.role-btn:hover{background:#e0b90f;}
+body {margin:0;font-family:Arial,sans-serif;background:#f7f9fc;display:flex;align-items:center;justify-content:center;height:100vh;}
+.center {display:flex;flex-direction:column;align-items:center;}
+h1 {color:#4a90e2;margin-bottom:20px;}
+button {padding:12px 24px;margin:8px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;color:white;background:#4a90e2;transition:0.3s;width:200px;}
+button:hover {background:#357ABD;}
 </style>
 </head>
 <body>
+<div class="center">
 <h1>ColdGuard Login</h1>
-<button class="role-btn" onclick="loginAs('Seller')">Seller</button>
-<button class="role-btn" onclick="loginAs('Buyer')">Buyer</button>
-<button class="role-btn" onclick="loginAs('Driver')">Driver</button>
+<button onclick="login('Seller')">Seller</button>
+<button onclick="login('Buyer')">Buyer</button>
+<button onclick="login('Driver')">Driver</button>
+</div>
 
 <script>
-function loginAs(role){
-  localStorage.setItem('role', role);
-  window.location.href = 'full_dashboard.html';
-}
-
-// ✅ Auto redirect if already logged in
-let savedRole = localStorage.getItem('role');
-if(savedRole){
-  window.location.href = 'full_dashboard.html';
+function login(role){
+    localStorage.setItem('role', role);
+    window.location.href = 'full_dashboard.html';
 }
 </script>
 </body>
