@@ -4,73 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ColdGuard Login</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 <style>
-body {
-  margin:0;
-  font-family: 'Roboto', sans-serif;
-  background: linear-gradient(135deg,#74ebd5,#acb6e5);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  color:#fff;
-}
-.login-box {
-  background: rgba(255,255,255,0.95);
-  color: #333;
-  padding: 40px;
-  border-radius: 15px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.2);
-  text-align:center;
-  width:320px;
-}
-.login-box h1 {
-  margin-bottom:30px;
-  font-size:28px;
-  color:#2c3e50;
-}
-.role-btn {
-  width:100%;
-  padding:12px;
-  margin:10px 0;
-  border:none;
-  border-radius:8px;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
-  transition:0.3s;
-  color:#fff;
-}
-.role-btn.seller {background:#f39c12;}
-.role-btn.seller:hover {background:#e67e22;}
-.role-btn.buyer {background:#2ecc71;}
-.role-btn.buyer:hover {background:#27ae60;}
-.role-btn.driver {background:#3498db;}
-.role-btn.driver:hover {background:#2980b9;}
+body {margin:0;font-family:Arial;background:#f0f4f8;display:flex;align-items:center;justify-content:center;height:100vh;}
+.container {background:#fff;padding:40px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);text-align:center;}
+h1 {color:#2c3e50;margin-bottom:20px;}
+button {margin:10px;padding:12px 24px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;color:#fff;transition:0.3s;width:160px;}
+button.seller{background:#f39c12;} button.buyer{background:#27ae60;} button.driver{background:#3498db;}
+button:hover {opacity:0.85;}
 </style>
 </head>
 <body>
-
-<div class="login-box">
-  <h1>ColdGuard Login</h1>
-  <button class="role-btn seller" onclick="loginAs('Seller')">Seller</button>
-  <button class="role-btn buyer" onclick="loginAs('Buyer')">Buyer</button>
-  <button class="role-btn driver" onclick="loginAs('Driver')">Driver</button>
+<div class="container">
+<h1>ColdGuard Login</h1>
+<button class="seller" onclick="login('Seller')">Seller</button>
+<button class="buyer" onclick="login('Buyer')">Buyer</button>
+<button class="driver" onclick="login('Driver')">Driver</button>
 </div>
 
 <script>
-function loginAs(role){
-  localStorage.setItem('role', role);
-  window.location.href='full_dashboard.html';
-}
-
-// Auto-redirect if already logged in
-let savedRole = localStorage.getItem('role');
-if(savedRole){
-  window.location.href='full_dashboard.html';
+function login(role){
+    localStorage.setItem('role', role);
+    // redirect ไป full_dashboard.html พร้อม role
+    window.location.href = "full_dashboard.html";
 }
 </script>
-
 </body>
 </html>
