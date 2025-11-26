@@ -26,9 +26,9 @@ header {padding:15px;text-align:center;font-size:24px;font-weight:bold;backgroun
 .toggle-btn{padding:8px 16px;margin:5px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;}
 input[type=number]{padding:5px 8px;margin-right:10px;border:1px solid #ccc;border-radius:5px;}
 button:hover{opacity:0.9;}
-.card-temp{background:#f39c12;color:#fff;}
+.card-temp{background:#3498db;color:#fff;}
 .card-hum{background:#2ecc71;color:#fff;}
-.card-status{background:#3498db;color:#fff;}
+.card-status{background:#1abc9c;color:#fff;}
 .card-alert{background:#e74c3c;color:#fff;}
 </style>
 </head>
@@ -109,7 +109,7 @@ let marker = null;
 const ctx = document.getElementById('trendChart').getContext('2d');
 let chart = new Chart(ctx, {
     type:'line',
-    data:{labels:[],datasets:[{label:'Temperature (°C)',data:[],borderColor:'#3498db',backgroundColor:'rgba(52,152,219,0.2)',fill:true}]} ,
+    data:{labels:[],datasets:[{label:'Temperature (°C)',data:[],borderColor:'#3498db',backgroundColor:'rgba(52,152,219,0.2)',pointBackgroundColor:[],fill:true}]} ,
     options:{
         responsive:true,
         animation:false,
@@ -121,9 +121,8 @@ let chart = new Chart(ctx, {
                 intersect:false,
                 callbacks:{
                     label:function(context){
-                        const idx = context.dataIndex;
-                        const status = context.chart.data.datasets[0].statusData?.[idx] || '';
-                        return `${context.dataset.label}: ${context.parsed.y} °C  | Status: ${status}`;
+                        const status = context.dataset.statusData?.[context.dataIndex] || '';
+                        return `${context.dataset.label}: ${context.parsed.y} °C | Status: ${status}`;
                     }
                 }
             }
@@ -177,8 +176,16 @@ onValue(recordsRef, snap=>{
   const tempData = entries.map(e=>e[1].temperature);
   const labels = entries.map(e=>e[0]);
   const statusData = entries.map(e=>e[1].status || '');
+  const pointColors = tempData.map(t=>{
+    if(alertMin!==null && alertMax!==null){
+      return (t<alertMin || t>alertMax)?'red':'#3498db';
+    }
+    return '#3498db';
+  });
+
   chart.data.labels = labels;
   chart.data.datasets[0].data = tempData;
+  chart.data.datasets[0].pointBackgroundColor = pointColors;
   chart.data.datasets[0].statusData = statusData;
   chart.update();
 });
