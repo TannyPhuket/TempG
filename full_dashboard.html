@@ -1,118 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cold Guard Dashboard</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cold Guard Dashboard</title>
 
-<style>
-body { margin:0; font-family:'Poppins', sans-serif; background:#f5f7fa; }
-.navbar { background:#0057ff; padding:15px; color:white; font-size:20px; display:flex; justify-content:space-between; align-items:center; }
-.card-container { display:flex; gap:20px; padding:20px; }
-.card { flex:1; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); text-align:center; font-size:22px; }
-button.settings-btn { background:#ff8800; border:none; padding:10px 18px; border-radius:8px; font-size:16px; color:white; cursor:pointer; }
-button.settings-btn:disabled { background:#aaa; cursor:not-allowed; }
+    <!-- ✅ Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-/* Modal */
-.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
-.modal-content { background:white; padding:25px; border-radius:12px; width:300px; text-align:center; }
-.modal-content input { width:100%; padding:10px; margin:10px 0; font-size:16px; }
-</style>
+    <!-- ✅ Simple CSS -->
+    <style>
+        body { font-family: Arial; margin: 0; background: #f5f5f5; }
+        .card {
+            background: #4cd964; padding: 20px; border-radius: 12px; margin: 15px;
+            color: white; font-size: 20px; font-weight: bold; text-align: center;
+        }
+        .container { padding: 20px; }
+        table {
+            width: 100%; border-collapse: collapse; background: white;
+            border-radius: 8px; overflow: hidden;
+        }
+        th, td {
+            padding: 10px; border-bottom: 1px solid #ddd; text-align: center;
+        }
+        th { background: #222; color: white; }
+        #map { height: 350px; border-radius: 12px; }
+    </style>
+
+    <!-- ✅ Firebase -->
+    <script type="module">
+
+        // ✅ Firebase Config (แก้ให้ตรงของคุณ)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+        import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "YOUR_KEY",
+            authDomain: "YOUR_DOMAIN",
+            databaseURL: "YOUR_URL",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_BUCKET",
+            messagingSenderId: "YOUR_SENDER",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // ✅ ตัวแปร Max–Min (แก้ได้ตามต้องการ)
+        let maxTemp = 10;
+        let minTemp = 2;
+
+        // ✅ แจ้งเตือนครั้งเดียว
+        let alertSent = false;
+
+        if ("Notification" in window) {
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+        }
+
+        // ✅ ดึงข้อมูลล่าสุดแบบ Real-Time
+        onValue(ref(db, "records/latest"), snap => {
+            const data = snap.val();
+            if (!data) return;
+
+            const temp = data.temperature;
+            const hum = data.humidity;
+
+            document.getElementById("tempValue").textContent = temp + " °C";
+            document.getElementById("humValue").textContent = hum + " %";
+
+            // ✅ เช็ค Max–Min
+            if (temp > maxTemp || temp < minTemp) {
+                document.getElementById("tempCard").style.background = "#ff4d4d";
+
+                if (!alertSent && Notification.permission === "granted") {
+                    new Notification("⚠️ Cold Guard Alert", {
+                        body: temp > maxTemp
+                            ? `Temperature สูงเกิน ${maxTemp}°C`
+                            : `Temperature ต่ำกว่า ${minTemp}°C`
+                    });
+                    alertSent = true;
+                }
+            } else {
+                document.getElementById("tempCard").style.background = "#4cd964";
+                alertSent = false;
+            }
+        });
+
+        // ✅ MAP Setup
+        let map = L.map("map").setView([7.8804, 98.3923], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+        let marker = L.marker([7.8804, 98.3923]).addTo(map);
+
+        // ✅ GPS Real-Time
+        onValue(ref(db, "records/latest/gps"), snap => {
+            const gps = snap.val();
+            if (!gps) return;
+            marker.setLatLng([gps.lat, gps.lng]);
+            map.setView([gps.lat, gps.lng]);
+        });
+
+        // ✅ ตารางย้อนหลัง (ดึงข้อมูลทั้งหมด)
+        async function loadHistory() {
+            const snap = await get(ref(db, "records"));
+            const data = snap.val();
+            if (!data) return;
+
+            let rows = [];
+
+            // ✅ Loop ทุก Record
+            Object.keys(data).forEach(key => {
+                const item = data[key];
+                rows.push({
+                    time: item.timestamp,
+                    temp: item.temperature,
+                    hum: item.humidity
+                });
+            });
+
+            // ✅ เรียงจากใหม่สุด
+            rows.sort((a, b) => b.time - a.time);
+
+            // ✅ จำกัด 100 รายการ (กันเว็บหน่วง)
+            rows = rows.slice(0, 100);
+
+            let tableBody = "";
+            rows.forEach(r => {
+                const date = new Date(r.time).toLocaleString();
+                tableBody += `
+                    <tr>
+                        <td>${date}</td>
+                        <td>${r.temp}</td>
+                        <td>${r.hum}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById("historyBody").innerHTML = tableBody;
+        }
+
+        loadHistory();
+
+    </script>
 
 </head>
 <body>
 
-<div class="navbar">
-    Cold Guard Dashboard
-    <button class="settings-btn" id="settingsBtn" onclick="openSettings()">Settings</button>
-</div>
-
-<div class="card-container">
+    <!-- ✅ Dashboard Cards -->
     <div class="card" id="tempCard">
-        Temperature: <span id="tempValue">--</span> °C
+        Temperature: <span id="tempValue">--</span>
     </div>
-    <div class="card" id="humCard">
-        Humidity: <span id="humValue">--</span> %
+
+    <div class="card" style="background:#007aff;">
+        Humidity: <span id="humValue">--</span>
     </div>
-</div>
 
-<!-- ✅ SETTINGS MODAL -->
-<div class="modal" id="settingsModal">
-    <div class="modal-content">
-        <h3>Alert Settings</h3>
-        <input type="number" id="maxInput" placeholder="Max Temperature">
-        <input type="number" id="minInput" placeholder="Min Temperature">
-        <button onclick="saveSettings()">Save</button>
-        <button onclick="closeSettings()">Close</button>
+    <!-- ✅ MAP -->
+    <div class="container">
+        <h3>Location</h3>
+        <div id="map"></div>
     </div>
-</div>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-  authDomain: "temperature-cold-guard.firebaseapp.com",
-  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "temperature-cold-guard",
-  storageBucket: "temperature-cold-guard.firebasestorage.app",
-  messagingSenderId: "29693405672",
-  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
-  measurementId: "G-XDHBRJ9S3W"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase();
-
-// ✅ อ่าน Role จาก localStorage
-const role = localStorage.getItem("userRole");
-
-// ✅ ถ้าไม่พบ role → กลับไป login
-if(!role){
-    window.location.href = "login.html";
-}
-
-// ✅ เฉพาะ Seller ปรับได้
-if(role !== "Seller"){
-    document.getElementById("settingsBtn").disabled = true;
-}
-// ✅ เปิดปิด Modal
-window.openSettings = function(){
-    document.getElementById("settingsModal").style.display = "flex";
-}
-window.closeSettings = function(){
-    document.getElementById("settingsModal").style.display = "none";
-}
-
-// ✅ โหลดค่า Max–Min จาก Firebase
-let maxTemp = null;
-let minTemp = null;
-
-onValue(ref(db, "settings/alertTemperature"), snap=>{
-    const data = snap.val();
-    if(!data) return;
-    maxTemp = data.max;
-    minTemp = data.min;
-    document.getElementById("maxInput").value = maxTemp;
-    document.getElementById("minInput").value = minTemp;
-});
-
-// ✅ บันทึกค่า Max–Min
-window.saveSettings = function(){
-    const max = Number(document.getElementById("maxInput").value);
-    const min = Number(document.getElementById("minInput").value);
-    set(ref(db, "settings/alertTemperature"), { max, min });
-    closeSettings();
-}
-
-// ✅ ดึงข้อมูลล่าสุด
-onValue(ref(db, "records/latest"), snap=>{
-    const data = snap.val();
-    if(!data) return;
-    document.getElementById("tempValue").textContent = data.temperature;
-    document.getElementById("humValue").textContent = data.humidity;
-});
-</script>
+    <!-- ✅ History Table -->
+    <div class="container">
+        <h3>History (Last 100 Records)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Temperature (°C)</th>
+                    <th>Humidity (%)</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+        </table>
+    </div>
 
 </body>
 </html>
