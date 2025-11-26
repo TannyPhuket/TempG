@@ -3,37 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cold Guard Login</title>
+<title>ColdGuard Login</title>
 <style>
-body { margin:0; font-family:'Poppins', sans-serif; background:#f5f7fa; display:flex; justify-content:center; align-items:center; height:100vh; }
-.login-container { background:white; padding:40px; border-radius:16px; box-shadow:0 8px 20px rgba(0,0,0,0.1); text-align:center; width:320px; }
-.login-container h1 { margin-bottom:30px; color:#0057ff; }
-.role-btn { width:100%; padding:15px; margin:10px 0; font-size:18px; border:none; border-radius:12px; cursor:pointer; color:white; transition:0.3s; }
-.role-btn:hover { opacity:0.85; }
-#sellerBtn { background:#ff6b00; }
-#buyerBtn { background:#007bff; }
-#driverBtn { background:#28a745; }
+body {
+    font-family: Arial, sans-serif;
+    background: #1b1b1b;
+    color: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+.login-container {
+    background: #2c2f33;
+    padding: 30px 40px;
+    border-radius: 12px;
+    text-align: center;
+}
+.login-container h2 { color: #f1c40f; margin-bottom: 20px; }
+button.role-btn {
+    margin: 10px;
+    padding: 10px 20px;
+    background: #f1c40f;
+    border: none;
+    color: #1b1b1b;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+}
+button.role-btn:hover { background: #e0b90f; }
 </style>
 </head>
 <body>
-
 <div class="login-container">
-    <h1>Cold Guard Login</h1>
-    <button class="role-btn" id="sellerBtn">Seller</button>
-    <button class="role-btn" id="buyerBtn">Buyer</button>
-    <button class="role-btn" id="driverBtn">Driver</button>
+    <h2>Select Role</h2>
+    <button class="role-btn" onclick="login('Seller')">Seller</button>
+    <button class="role-btn" onclick="login('Buyer')">Buyer</button>
+    <button class="role-btn" onclick="login('Driver')">Driver</button>
 </div>
 
 <script>
-document.getElementById("sellerBtn").addEventListener("click",()=>{ loginRole("Seller"); });
-document.getElementById("buyerBtn").addEventListener("click",()=>{ loginRole("Buyer"); });
-document.getElementById("driverBtn").addEventListener("click",()=>{ loginRole("Driver"); });
-
-function loginRole(role){
-    localStorage.setItem("userRole", role);
-    window.location.href = "full_dashboard.html"; // ชื่อไฟล์ Dashboard ของคุณ
+function login(role){
+    localStorage.setItem('role', role);
+    window.location.href = "full_dashboard_v2.html";
 }
 </script>
-
 </body>
 </html>
