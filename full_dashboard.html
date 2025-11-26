@@ -87,24 +87,21 @@ appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let role = localStorage.getItem('role');
-
-// ✅ Auto-load dashboard if logged in
-if(role){
-    showDashboard();
-}
+let role = null; // ไม่โหลดจาก localStorage เพื่อให้ Login แสดงทุกครั้ง
 
 // ✅ Login
 window.loginAs = function(r){
-    localStorage.setItem('role', r);
     role = r;
+    localStorage.setItem('role', r); // เก็บไว้ใช้ในอนาคตถ้าต้องการ
     showDashboard();
 };
 
 // ✅ Logout Button
 window.logout = function(){
+    role = null;
     localStorage.removeItem('role');
-    location.reload();
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login').style.display = 'flex';
 };
 
 // ✅ Show Dashboard UI
@@ -119,6 +116,7 @@ function showDashboard(){
 let map, marker, chart;
 
 function initDashboard(){
+    if(map) return; // ป้องกัน init ซ้ำ
     map=L.map("map").setView([7.8804,98.3923],13);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
     marker=L.marker([7.8804,98.3923]).addTo(map);
