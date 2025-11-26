@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColdGuard Dashboard</title>
+<title>ColdGuard Full Dashboard</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -13,66 +13,82 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {margin:0;font-family:Arial,sans-serif;background:#f0f4f8;color:#333;}
-header {padding:15px;text-align:center;font-size:24px;font-weight:bold;background:#3498db;color:#fff;}
-#dashboard{padding:20px;}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-.logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#3498db;}
-.cards{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
-.card{flex:1 1 200px;padding:20px;border-radius:10px;font-weight:bold;text-align:center;transition:0.3s;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-#map, #trendChartContainer{height:350px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-#sellerSettings{background:#fff;padding:15px;border-radius:10px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-.hidden{display:none;}
-.toggle-btn{padding:8px 16px;margin:5px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;}
-input[type=number]{padding:5px 8px;margin-right:10px;border:1px solid #ccc;border-radius:5px;}
-button:hover{opacity:0.9;}
-.card-temp{background:#3498db;color:#fff;}
-.card-hum{background:#2ecc71;color:#fff;}
-.card-status{background:#1abc9c;color:#fff;}
-.card-alert{background:#e74c3c;color:#fff;}
+body {margin:0;font-family:Arial,sans-serif;background:#f7f9fc;color:#333;}
+header {background:#4a90e2;color:#fff;padding:20px;font-size:22px;text-align:center;}
+.container {padding:20px;max-width:1200px;margin:auto;}
+.cards {display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;}
+.card {flex:1 1 200px;background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);text-align:center;}
+.card h3 {margin-bottom:10px;color:#555;}
+.card .value {font-size:28px;font-weight:bold;}
+.card.danger {background:#f8d7da;color:#721c24;}
+#map {height:350px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+table {width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;margin-bottom:20px;}
+th,td {padding:10px;border-bottom:1px solid #eee;text-align:center;}
+th {background:#f1f3f6;}
+button {padding:8px 16px;margin:5px;background:#4a90e2;color:white;border:none;border-radius:5px;cursor:pointer;}
+button:disabled {background:#aaa;}
+#settings {background:#fff;padding:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;}
+.hidden {display:none;}
+.alert {color:red;font-weight:bold;}
 </style>
 </head>
 <body>
 
-<header id="header">ColdGuard Dashboard</header>
-<button class="logout-btn" onclick="logout()">🚪 Logout</button>
+<header>ColdGuard Dashboard</header>
 
-<div id="dashboard">
-  <p><b>Role:</b> <span id="roleLabel"></span></p>
+<div class="container">
 
-  <!-- Seller Only Settings -->
-  <div id="sellerSettings" class="hidden">
-    <h3>Temperature Alert Settings</h3>
-    <input type="number" id="minTemp" placeholder="Min °C">
-    <input type="number" id="maxTemp" placeholder="Max °C">
-    <button onclick="saveTempSettings()">Save</button>
-  </div>
+<p><b>Role:</b> <span id="roleLabel"></span></p>
 
-  <!-- Cards -->
-  <div class="cards">
-    <div class="card card-temp" id="tempCard">Temperature: -- °C</div>
-    <div class="card card-hum" id="humCard">Humidity: -- %</div>
-    <div class="card card-status" id="statusCard">Status: --</div>
-  </div>
-
-  <!-- Toggle Map/Chart -->
-  <button class="toggle-btn" onclick="showMap()">Show Map</button>
-  <button class="toggle-btn" onclick="showTrend()">Show Trend</button>
-
-  <!-- Map & Trend Chart -->
-  <div id="map"></div>
-  <div id="trendChartContainer" class="hidden">
-    <canvas id="trendChart"></canvas>
-  </div>
+<!-- Seller Only -->
+<div id="settings" class="hidden">
+  <h3>Temperature Alert Settings (°C)</h3>
+  Min: <input type="number" id="minTemp" placeholder="Min">
+  Max: <input type="number" id="maxTemp" placeholder="Max">
+  <button onclick="saveAlert()">Save</button>
 </div>
 
-<audio id="alertAudio" src="https://actions.google.com/sounds/v1/cartoon/minion_laugh.ogg"></audio>
+<div class="cards">
+  <div class="card" id="tempCard">Temperature: <span class="value" id="cardTemp">--</span></div>
+  <div class="card" id="humCard">Humidity: <span class="value" id="cardHum">--</span></div>
+  <div class="card" id="statusCard">Status: <span class="value" id="cardStatus">--</span></div>
+</div>
+
+<div id="map"></div>
+
+<h3>Trend Chart</h3>
+<canvas id="trendChart" height="200"></canvas>
+
+<table>
+  <thead>
+    <tr>
+      <th>Date/Time</th>
+      <th>Temperature</th>
+      <th>Humidity</th>
+      <th>GPS</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<div class="pagination">
+  <button onclick="prevPage()">Previous</button>
+  <button onclick="nextPage()">Next</button>
+</div>
+
+<!-- Minion Siren Sound -->
+<audio id="sirenAudio">
+  <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
+</audio>
+
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-// Firebase config
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
   authDomain: "temperature-cold-guard.firebaseapp.com",
@@ -80,115 +96,122 @@ const firebaseConfig = {
   projectId: "temperature-cold-guard",
   storageBucket: "temperature-cold-guard.firebasestorage.app",
   messagingSenderId: "29693405672",
-  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d",
+  measurementId: "G-XDHBRJ9S3W"
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Check login
-const role = localStorage.getItem('role');
-if(!role){ window.location.href='login.html'; }
-document.getElementById('roleLabel').innerText = role;
+// Role & Settings
+let role = localStorage.getItem("role") || "Buyer"; // ปรับตาม login
+document.getElementById("roleLabel").innerText = role;
+if(role === "Seller") document.getElementById("settings").classList.remove("hidden");
 
-// Seller settings
-let alertMin = null;
-let alertMax = null;
-if(role==='Seller'){ document.getElementById('sellerSettings').classList.remove('hidden'); }
-function saveTempSettings(){
-  alertMin = Number(document.getElementById('minTemp').value);
-  alertMax = Number(document.getElementById('maxTemp').value);
-  alert('Saved!');
-}
+// Alert Temp
+let minAlert = null;
+let maxAlert = null;
+
+// Pagination
+let page = 0;
+const pageSize = 10;
+let records = [];
 
 // Map
 const map = L.map('map').setView([13.736717,100.523186],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 let marker = null;
 
-// Trend Chart
+// Chart
 const ctx = document.getElementById('trendChart').getContext('2d');
-let chart = new Chart(ctx, {
-    type:'line',
-    data:{labels:[],datasets:[{label:'Temperature (°C)',data:[],borderColor:'#3498db',backgroundColor:'rgba(52,152,219,0.2)',pointBackgroundColor:[],fill:true}]} ,
-    options:{
-        responsive:true,
-        animation:false,
-        scales:{y:{beginAtZero:false}},
-        plugins:{
-            legend:{display:true},
-            tooltip:{
-                mode:'index',
-                intersect:false,
-                callbacks:{
-                    label:function(context){
-                        const status = context.dataset.statusData?.[context.dataIndex] || '';
-                        return `${context.dataset.label}: ${context.parsed.y} °C | Status: ${status}`;
-                    }
-                }
-            }
-        }
-    }
+const trendChart = new Chart(ctx, {
+  type: 'line',
+  data: { labels: [], datasets:[{label:'Temperature',data:[],borderColor:'rgba(74,144,226,1)',fill:false}] },
+  options: { responsive:true, scales:{y:{beginAtZero:false}} }
 });
 
-// Toggle
-function showMap(){document.getElementById('map').classList.remove('hidden'); document.getElementById('trendChartContainer').classList.add('hidden');}
-function showTrend(){document.getElementById('trendChartContainer').classList.remove('hidden'); document.getElementById('map').classList.add('hidden');}
+// Load Records
+function loadRecords() {
+  onValue(ref(db,"records"), snapshot=>{
+    const data = snapshot.val() || {};
+    records = Object.entries(data).reverse();
+    const latest = records[0]?.[1];
+    updateCards(latest);
+    updateMap(latest);
+    updateChart();
+    renderPage();
+  });
+}
 
-// Load latest record
-const recordsRef = ref(db,'records');
-onValue(recordsRef, snap=>{
-  const data = snap.val();
-  if(!data) return;
-  const entries = Object.entries(data).sort((a,b)=>new Date(a[0])-new Date(b[0]));
-  const latest = entries[entries.length-1][1];
+// Update Cards
+function updateCards(latest){
+  if(!latest) return;
+  document.getElementById("cardTemp").innerText = latest.temperature + "°C";
+  document.getElementById("cardHum").innerText = latest.humidity + "%";
+  document.getElementById("cardStatus").innerText = latest.status;
 
-  const temp = latest.temperature;
-  const hum = latest.humidity;
-  const status = latest.status || 'OK';
-
-  // Update cards
-  const tempCard = document.getElementById('tempCard');
-  const humCard = document.getElementById('humCard');
-  const statusCard = document.getElementById('statusCard');
-
-  tempCard.textContent = `Temperature: ${temp} °C`;
-  humCard.textContent = `Humidity: ${hum} %`;
-  statusCard.textContent = `Status: ${status}`;
-
-  // Seller alert
-  if(role==='Seller' && alertMin!==null && alertMax!==null){
-      if(temp<alertMin || temp>alertMax){
-          tempCard.className='card card-alert';
-          document.getElementById('alertAudio').play();
-      } else { tempCard.className='card card-temp'; }
+  // Alert check
+  if(role==="Seller" && minAlert!=null && maxAlert!=null){
+    if(latest.temperature < minAlert || latest.temperature > maxAlert){
+      document.getElementById("tempCard").classList.add("danger");
+      document.getElementById("sirenAudio").play();
+    } else {
+      document.getElementById("tempCard").classList.remove("danger");
+    }
   }
+}
 
-  // Map
-  if(latest.gps){
-    const lat = latest.gps.lat;
-    const lng = latest.gps.lng;
+// Update Map
+function updateMap(latest){
+  if(!latest || !latest.gps) return;
+  const lat = latest.gps.lat;
+  const lng = latest.gps.lng;
+
+  if(lat != null && lng != null){
     if(!marker) marker = L.marker([lat,lng]).addTo(map);
     else marker.setLatLng([lat,lng]);
     map.setView([lat,lng],13);
+  } else {
+    console.warn("Invalid GPS:", latest.gps);
   }
+}
 
-  // Update trend chart
-  const tempData = entries.map(e=>e[1].temperature);
-  const labels = entries.map(e=>e[0]);
-  const statusData = entries.map(e=>e[1].status || '');
-  const pointColors = tempData.map(t=>{
-    if(alertMin!==null && alertMax!==null){
-      return (t<alertMin || t>alertMax)?'red':'#3498db';
-    }
-    return '#3498db';
+// Update Chart
+function updateChart(){
+  trendChart.data.labels = records.map(r=>r[0]).reverse();
+  trendChart.data.datasets[0].data = records.map(r=>r[1].temperature).reverse();
+  trendChart.update();
+}
+
+// Table Pagination
+function renderPage(){
+  const tbody = document.getElementById("tableBody");
+  tbody.innerHTML = "";
+  const start = page*pageSize;
+  const end = start+pageSize;
+  const pageRecords = records.slice(start,end);
+  pageRecords.forEach(([time,item])=>{
+    tbody.innerHTML += `<tr>
+      <td>${time}</td>
+      <td>${item.temperature}°C</td>
+      <td>${item.humidity}%</td>
+      <td>${item.gps?.lat || '-'}, ${item.gps?.lng || '-'}</td>
+      <td>${item.status}</td>
+    </tr>`;
   });
+}
+window.nextPage = ()=>{ page++; renderPage(); }
+window.prevPage = ()=>{ if(page>0) page--; renderPage(); }
 
-  chart.data.labels = labels;
-  chart.data.datasets[0].data = tempData;
-  chart.data.datasets[0].pointBackgroundColor = pointColors;
-  chart.data.datasets[0].statusData = statusData;
-  chart.update();
-});
+// Save Alert (Seller Only)
+window.saveAlert = ()=>{
+  minAlert = Number(document.getElementById("minTemp").value);
+  maxAlert = Number(document.getElementById("maxTemp").value);
+  update(ref(db,"settings"),{minTemp:minAlert,maxTemp:maxAlert});
+  alert(`Saved alert range: ${minAlert}°C - ${maxAlert}°C`);
+}
+
+loadRecords();
 </script>
+
 </body>
 </html>
