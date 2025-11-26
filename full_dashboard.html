@@ -5,96 +5,228 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ColdGuard Dashboard</title>
 
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
-.header{display:flex;justify-content:space-between;align-items:center;padding:20px;}
-.header h1{color:#f1c40f;margin:0;}
-.logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#f1c40f;}
-.card-container{display:flex;gap:20px;flex-wrap:wrap;padding:0 20px;margin-bottom:20px;}
-.card{flex:1 1 200px;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;}
-#map{height:350px;border-radius:12px;margin:0 20px 20px 20px;}
-.seller { background:#f39c12; color:#111; }
-.buyer { background:#2ecc71; color:#111; }
-.driver { background:#3498db; color:#fff; }
+header{display:flex;justify-content:space-between;align-items:center;padding:20px;background:#1c1c1c;color:#f1c40f;}
+.logout-btn{cursor:pointer;font-size:22px;color:#f1c40f;background:none;border:none;}
+.container{padding:20px;}
+.card-container{display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;}
+.card{flex:1 1 200px;padding:20px;border-radius:10px;text-align:center;font-weight:bold;color:#fff;}
+.card.temp{background:#e67e22;}
+.card.hum{background:#2ecc71;}
+.card.status{background:#3498db;}
+#map{height:350px;border-radius:12px;margin-bottom:20px;}
+.hidden{display:none;}
 </style>
 </head>
 <body>
 
-<div class="header">
-<h1>ColdGuard Dashboard (<span id="roleLabel"></span>)</h1>
-<button class="logout-btn" onclick="logout()">🚪</button>
+<header>
+    <h1>ColdGuard Dashboard (<span id="roleLabel"></span>)</h1>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+</header>
+
+<div class="container">
+    <!-- Seller Only -->
+    <div id="settings" class="hidden">
+        <h3>Temperature Alert Setting</h3>
+        <input type="number" id="alertTemp" placeholder="Max °C">
+        <button onclick="saveAlert()">Save</button>
+    </div>
+
+    <!-- Cards -->
+    <div class="card-container">
+        <div class="card temp">Temperature: <span id="cardTemp">--</span>°C</div>
+        <div class="card hum">Humidity: <span id="cardHum">--</span>%</div>
+        <div class="card status">Status: <span id="cardStatus">--</span></div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
 </div>
-
-<div class="card-container">
-<div class="card seller" id="tempCard">Temperature: <span id="tempValue">--</span></div>
-<div class="card seller" id="humCard">Humidity: <span id="humValue">--</span></div>
-</div>
-
-<div id="map"></div>
-
-<h3 style="padding:0 20px;">Trend Chart</h3>
-<canvas id="trendChart" height="200" style="margin:0 20px;"></canvas>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
 // Firebase Config
 const firebaseConfig = {
-apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-authDomain: "temperature-cold-guard.firebaseapp.com",
-databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
-projectId: "temperature-cold-guard",
-storageBucket: "temperature-cold-guard.firebasestorage.app",
-messagingSenderId: "29693405672",
-appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+  authDomain: "temperature-cold-guard.firebaseapp.com",
+  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "temperature-cold-guard",
+  storageBucket: "temperature-cold-guard.firebasestorage.app",
+  messagingSenderId: "29693405672",
+  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ✅ ตรวจสอบ role
+// ✅ ตรวจสอบ Role
 let role = localStorage.getItem('role');
-if(!role) window.location.href = 'login.html'; // ถ้าไม่มี role ให้กลับไปหน้า login
-
+if(!role){ window.location.href="login.html"; } // ถ้าไม่ได้ล็อกอิน กลับไปหน้า login
 document.getElementById('roleLabel').textContent = role;
 
-// เปลี่ยนสี card ตามบทบาท
-const tempCard = document.getElementById('tempCard');
-const humCard = document.getElementById('humCard');
-if(role==='Seller'){ tempCard.className='card seller'; humCard.className='card seller'; }
-else if(role==='Buyer'){ tempCard.className='card buyer'; humCard.className='card buyer'; }
-else if(role==='Driver'){ tempCard.className='card driver'; humCard.className='card driver'; }
-
-// ✅ Logout
-window.logout = function(){
-    localStorage.removeItem('role');
-    window.location.href = 'login.html';
+// ✅ แสดงเมนู Seller
+if(role === 'Seller'){
+    document.getElementById('settings').classList.remove('hidden');
 }
 
-// Dashboard Map & Firebase
-let map = L.map("map").setView([7.8804,98.3923],13);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-let marker = L.marker([7.8804,98.3923]).addTo(map);
+// Leaflet Map
+const map = L.map('map').setView([13.736717, 100.523186], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let marker = null;
 
-onValue(ref(db,"records/latest"), snap=>{
-    const data = snap.val(); if(!data) return;
-    const temp = data.temperature, hum = data.humidity;
-    document.getElementById("tempValue").textContent=temp+" °C";
-    document.getElementById("humValue").textContent=hum+" %";
+// โหลดข้อมูลล่าสุดจาก Firebase
+const recordsRef = ref(db,"records/latest");
+onValue(recordsRef, snap=>{
+    const data = snap.val();
+    if(!data) return;
+
+    document.getElementById("cardTemp").textContent = data.temperature;
+    document.getElementById("cardHum").textContent = data.humidity;
+    document.getElementById("cardStatus").textContent = data.status;
+
+    if(data.gps){
+        const lat = data.gps.lat;
+        const lng = data.gps.lng;
+        if(!marker){ marker = L.marker([lat,lng]).addTo(map); }
+        else{ marker.setLatLng([lat,lng]); }
+        map.setView([lat,lng],13);
+    }
 });
-onValue(ref(db,"records/latest/gps"), snap=>{
-    const gps = snap.val(); if(!gps) return;
-    marker.setLatLng([gps.lat,gps.lng]);
-    map.setView([gps.lat,gps.lng]);
-});
+
+// Logout
+function logout(){
+    localStorage.removeItem('role');
+    window.location.href="login.html";
+}
+
+// Seller Save Alert
+function saveAlert(){
+    const val = document.getElementById('alertTemp').value;
+    update(ref(db,"settings"),{ alertTemperature: Number(val) });
+    alert("Saved!");
+}
 </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColdGuard Dashboard</title>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px;background:#1c1c1c;color:#f1c40f;}
+.logout-btn{cursor:pointer;font-size:22px;color:#f1c40f;background:none;border:none;}
+.container{padding:20px;}
+.card-container{display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;}
+.card{flex:1 1 200px;padding:20px;border-radius:10px;text-align:center;font-weight:bold;color:#fff;}
+.card.temp{background:#e67e22;}
+.card.hum{background:#2ecc71;}
+.card.status{background:#3498db;}
+#map{height:350px;border-radius:12px;margin-bottom:20px;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+    <h1>ColdGuard Dashboard (<span id="roleLabel"></span>)</h1>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+</header>
+
+<div class="container">
+    <!-- Seller Only -->
+    <div id="settings" class="hidden">
+        <h3>Temperature Alert Setting</h3>
+        <input type="number" id="alertTemp" placeholder="Max °C">
+        <button onclick="saveAlert()">Save</button>
+    </div>
+
+    <!-- Cards -->
+    <div class="card-container">
+        <div class="card temp">Temperature: <span id="cardTemp">--</span>°C</div>
+        <div class="card hum">Humidity: <span id="cardHum">--</span>%</div>
+        <div class="card status">Status: <span id="cardStatus">--</span></div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+  authDomain: "temperature-cold-guard.firebaseapp.com",
+  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "temperature-cold-guard",
+  storageBucket: "temperature-cold-guard.firebasestorage.app",
+  messagingSenderId: "29693405672",
+  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ✅ ตรวจสอบ Role
+let role = localStorage.getItem('role');
+if(!role){ window.location.href="login.html"; } // ถ้าไม่ได้ล็อกอิน กลับไปหน้า login
+document.getElementById('roleLabel').textContent = role;
+
+// ✅ แสดงเมนู Seller
+if(role === 'Seller'){
+    document.getElementById('settings').classList.remove('hidden');
+}
+
+// Leaflet Map
+const map = L.map('map').setView([13.736717, 100.523186], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let marker = null;
+
+// โหลดข้อมูลล่าสุดจาก Firebase
+const recordsRef = ref(db,"records/latest");
+onValue(recordsRef, snap=>{
+    const data = snap.val();
+    if(!data) return;
+
+    document.getElementById("cardTemp").textContent = data.temperature;
+    document.getElementById("cardHum").textContent = data.humidity;
+    document.getElementById("cardStatus").textContent = data.status;
+
+    if(data.gps){
+        const lat = data.gps.lat;
+        const lng = data.gps.lng;
+        if(!marker){ marker = L.marker([lat,lng]).addTo(map); }
+        else{ marker.setLatLng([lat,lng]); }
+        map.setView([lat,lng],13);
+    }
+});
+
+// Logout
+function logout(){
+    localStorage.removeItem('role');
+    window.location.href="login.html";
+}
+
+// Seller Save Alert
+function saveAlert(){
+    const val = document.getElementById('alertTemp').value;
+    update(ref(db,"settings"),{ alertTemperature: Number(val) });
+    alert("Saved!");
+}
+</script>
 </body>
 </html>
