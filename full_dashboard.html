@@ -114,7 +114,15 @@ const ctx = document.getElementById('trendChart').getContext('2d');
 let chart = new Chart(ctx, {
     type:'line',
     data:{labels:[],datasets:[{label:'Temperature',data:[],borderColor:'#e67e22',fill:false}]} ,
-    options:{responsive:true,animation:false,scales:{y:{beginAtZero:false}}}
+    options:{
+        responsive:true,
+        animation:false,
+        scales:{y:{beginAtZero:false}},
+        plugins:{
+            legend:{display:true},
+            tooltip:{mode:'index',intersect:false}
+        }
+    }
 });
 
 // Toggle
@@ -139,12 +147,16 @@ onValue(recordsRef, snap=>{
   document.getElementById('statusCard').textContent = `Status: ${status}`;
 
   // Seller alert
-  if(role==='Seller' && alertMin!==null && alertMax!==null && (temp<alertMin || temp>alertMax)){
-    document.getElementById('tempCard').style.backgroundColor = '#e74c3c';
-    document.getElementById('alertAudio').play();
-  } else { document.getElementById('tempCard').style.backgroundColor = roleColors[role]; }
+  if(role==='Seller' && alertMin!==null && alertMax!==null){
+      if(temp<alertMin || temp>alertMax){
+          document.getElementById('tempCard').style.backgroundColor = '#e74c3c';
+          document.getElementById('alertAudio').play();
+      } else {
+          document.getElementById('tempCard').style.backgroundColor = roleColors[role];
+      }
+  }
 
-  // Map visible for Driver and Buyer
+  // Map
   if(latest.gps){
     const lat = latest.gps.lat;
     const lng = latest.gps.lng;
@@ -153,9 +165,20 @@ onValue(recordsRef, snap=>{
     map.setView([lat,lng],13);
   }
 
-  // Update trend chart
-  chart.data.labels = entries.map(e=>e[0]);
-  chart.data.datasets[0].data = entries.map(e=>e[1].temperature);
+  // Update trend chart with color highlight
+  const tempData = entries.map(e=>e[1].temperature);
+  const labels = entries.map(e=>e[0]);
+  const backgroundColors = tempData.map(t=>{
+      if(role==='Seller' && alertMin!==null && alertMax!==null){
+          return (t<alertMin||t>alertMax)?'#e74c3c':'#e67e22';
+      }
+      return '#e67e22';
+  });
+
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = tempData;
+  chart.data.datasets[0].borderColor = '#e67e22';
+  chart.data.datasets[0].backgroundColor = backgroundColors;
   chart.update();
 });
 </script>
