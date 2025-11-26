@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColdGuard Dashboard v4</title>
+<title>ColdGuard Dashboard v5</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -118,46 +118,76 @@ appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Role
+// ----------------------
+// Role Management
+// ----------------------
 const role = localStorage.getItem('role') || 'Buyer';
 if(role==='Seller'){ document.getElementById('settings').style.display='block'; }
 
-// Max-Min
+// ----------------------
+// Max-Min Settings
+// ----------------------
 let maxTemp=parseFloat(document.getElementById('maxTempInput').value);
 let minTemp=parseFloat(document.getElementById('minTempInput').value);
-let alertSent=false;
+let alertSentRole=false;
+
+// Permission for Browser Notification
 if("Notification" in window && Notification.permission!=="granted"){Notification.requestPermission();}
 
+// ----------------------
 // Real-Time Data
+// ----------------------
 onValue(ref(db,"records/latest"), snap=>{
-const data=snap.val(); if(!data) return;
-const temp=data.temperature; const hum=data.humidity;
-document.getElementById("tempValue").textContent=temp+" °C";
-document.getElementById("humValue").textContent=hum+" %";
-const tempCard=document.getElementById("tempCard");
-if(temp>maxTemp||temp<minTemp){ tempCard.className="card danger";
-if(!alertSent && Notification.permission==="granted"){new Notification("⚠️ Cold Guard Alert",{body: temp>maxTemp?`Temperature สูงเกิน ${maxTemp}°C`:`Temperature ต่ำกว่า ${minTemp}°C`});alertSent=true;} }
-else{ tempCard.className="card"; alertSent=false; }
-loadTrendChart();
+    const data=snap.val(); if(!data) return;
+    const temp=data.temperature; const hum=data.humidity;
+    document.getElementById("tempValue").textContent=temp+" °C";
+    document.getElementById("humValue").textContent=hum+" %";
+
+    // Card Warning
+    const tempCard=document.getElementById("tempCard");
+    if(temp>maxTemp||temp<minTemp){ tempCard.className="card danger"; }
+    else{ tempCard.className="card"; }
+
+    // Real-Time Alert
+    checkAlert(temp);
+
+    // Update Chart
+    loadTrendChart();
 });
 
+// ----------------------
 // Map
+// ----------------------
 let map=L.map("map").setView([7.8804,98.3923],13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 let marker=L.marker([7.8804,98.3923]).addTo(map);
-onValue(ref(db,"records/latest/gps"), snap=>{const gps=snap.val();if(!gps)return;marker.setLatLng([gps.lat,gps.lng]);map.setView([gps.lat,gps.lng]);});
+onValue(ref(db,"records/latest/gps"), snap=>{
+    const gps=snap.val(); if(!gps) return;
+    marker.setLatLng([gps.lat,gps.lng]);
+    map.setView([gps.lat,gps.lng]);
+});
 
+// ----------------------
 // History Table
+// ----------------------
 let allRows=[],filteredRows=[],currentPage=1,rowsPerPage=10;
 async function loadHistory(){
     const snap=await get(ref(db,"records"));
     const data=snap.val(); if(!data) return;
     allRows=[];
-    Object.keys(data).forEach(key=>{const item=data[key];allRows.push({time:item.timestamp,temp:item.temperature,hum:item.humidity});});
+    Object.keys(data).forEach(key=>{
+        const item=data[key];
+        allRows.push({time:item.timestamp,temp:item.temperature,hum:item.humidity});
+    });
     allRows.sort((a,b)=>b.time-b.time);
+
     // Role Filter
-    if(role==='Driver'){ const sevenDaysAgo=new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-7); filteredRows=allRows.filter(r=>new Date(r.time)>=sevenDaysAgo);}
-    else{filteredRows=[...allRows];}
+    if(role==='Driver'){
+        const sevenDaysAgo=new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-7);
+        filteredRows=allRows.filter(r=>new Date(r.time)>=sevenDaysAgo);
+    }else{
+        filteredRows=[...allRows];
+    }
     renderTable();
 }
 function renderTable(){
@@ -180,7 +210,9 @@ filteredRows=allRows.filter(r=>{const d=new Date(r.time).toISOString().split("T"
 window.resetFilter=function(){filteredRows=[...allRows];currentPage=1;renderTable();}
 window.exportCSV=function(){let csv="Timestamp,Temperature,Humidity\n";filteredRows.forEach(r=>{csv+=`${new Date(r.time).toLocaleString()},${r.temp},${r.hum}\n`;});const blob=new Blob([csv],{type:"text/csv"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="history_records.csv";link.click();}
 
+// ----------------------
 // Settings
+// ----------------------
 function saveSettings(){
     const max=parseFloat(document.getElementById('maxTempInput').value);
     const min=parseFloat(document.getElementById('minTempInput').value);
@@ -190,14 +222,20 @@ function saveSettings(){
     alert("Settings saved!");
 }
 
+// ----------------------
 // Trend Chart
+// ----------------------
 let trendChart;
 async function loadTrendChart(){
     const snap=await get(ref(db,"records"));
     const data=snap.val(); if(!data) return;
     let rows=[];
     const thirtyDaysAgo=new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
-    Object.keys(data).forEach(key=>{const item=data[key];const ts=new Date(item.timestamp);if(ts>=thirtyDaysAgo){rows.push({time:ts,temp:item.temperature,hum:item.humidity});}});
+    Object.keys(data).forEach(key=>{
+        const item=data[key];
+        const ts=new Date(item.timestamp);
+        if(ts>=thirtyDaysAgo){rows.push({time:ts,temp:item.temperature,hum:item.humidity});}
+    });
     rows.sort((a,b)=>a.time-b.time);
     const labels=rows.map(r=>r.time.toLocaleDateString()+" "+r.time.toLocaleTimeString());
     const tempData=rows.map(r=>r.temp);
@@ -220,10 +258,35 @@ async function loadTrendChart(){
     });
 }
 
-// Theme Toggle
-function toggleTheme(){const body=document.body;if(body.style.background==="#f5f5f5"){body.style.background="#1b1b1b";body.style.color="#f5f5f5";}else{body.style.background="#f5f5f5";body.style.color="#1b1b1b";}}
+// ----------------------
+// Real-Time Notification
+// ----------------------
+function checkAlert(temp){
+    const now=new Date();
+    if(temp>maxTemp||temp<minTemp){
+        if(!alertSentRole && Notification.permission==="granted"){
+            let bodyMsg=temp>maxTemp?`Temperature สูงเกิน ${maxTemp}°C`:`Temperature ต่ำกว่า ${minTemp}°C`;
+            new Notification("⚠️ Cold Guard Alert",{
+                body:`[${role}] ${bodyMsg} at ${now.toLocaleString()}`,
+                icon:"https://cdn-icons-png.flaticon.com/512/595/595067.png"
+            });
+            alertSentRole=true;
+        }
+    }else{alertSentRole=false;}
+}
 
-// Load
+// ----------------------
+// Theme Toggle
+// ----------------------
+function toggleTheme(){
+    const body=document.body;
+    if(body.style.background==="#f5f5f5"){body.style.background="#1b1b1b";body.style.color="#f5f5f5";}
+    else{body.style.background="#f5f5f5";body.style.color="#1b1b1b";}
+}
+
+// ----------------------
+// Load Initial
+// ----------------------
 loadHistory();
 </script>
 
