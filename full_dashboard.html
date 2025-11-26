@@ -5,100 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cold Guard Dashboard</title>
 
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
 <style>
 body { margin:0; font-family:'Poppins', sans-serif; background:#f5f7fa; }
-.navbar { background:#0057ff; color:white; padding:15px 25px; display:flex; justify-content:space-between; font-size:18px; }
-.container { padding:25px; }
-.cards { display:flex; gap:20px; margin-bottom:25px; }
-.card { flex:1; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08); text-align:center; font-size:20px; transition:0.3s; }
-#map { width:100%; height:300px; border-radius:12px; margin-bottom:30px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-table { width:100%; background:white; border-collapse:collapse; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-th, td { padding:12px; border-bottom:1px solid #eee; text-align:center; }
-th { background:#e9f1ff; }
-.settings-btn { padding:10px 20px; background:#ff9d00; border:none; color:white; font-size:16px; border-radius:8px; cursor:pointer; margin-bottom:20px; display:none; }
-.pagination { margin-top:15px; text-align:center; }
-.pagination button { padding:6px 12px; margin:0 5px; border:none; border-radius:5px; background:#0057ff; color:white; cursor:pointer; }
-.pagination button:disabled { background:#aaa; cursor:not-allowed; }
+.navbar { background:#0057ff; padding:15px; color:white; font-size:20px; display:flex; justify-content:space-between; align-items:center; }
+.card-container { display:flex; gap:20px; padding:20px; }
+.card { flex:1; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1); text-align:center; font-size:22px; }
+button.settings-btn { background:#ff8800; border:none; padding:10px 18px; border-radius:8px; font-size:16px; color:white; cursor:pointer; }
+button.settings-btn:disabled { background:#aaa; cursor:not-allowed; }
 
 /* Modal */
-#settingsModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content:center; align-items:center; }
-#settingsModal .modal-content { background:white; padding:20px; border-radius:12px; min-width:300px; }
-#settingsModal input { width:100%; margin-bottom:10px; padding:5px; }
-#settingsModal button { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; }
-#settingsModal .save-btn { background:#0057ff; color:white; }
-#settingsModal .cancel-btn { margin-left:10px; }
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+.modal-content { background:white; padding:25px; border-radius:12px; width:300px; text-align:center; }
+.modal-content input { width:100%; padding:10px; margin:10px 0; font-size:16px; }
 </style>
+
 </head>
 <body>
 
 <div class="navbar">
-    <div>Cold Guard Dashboard</div>
-    <div id="roleDisplay"></div>
+    Cold Guard Dashboard
+    <button class="settings-btn" id="settingsBtn" onclick="openSettings()">Settings</button>
 </div>
 
-<div class="container">
-    <button id="settingsBtn" class="settings-btn" onclick="openSettings()">⚙ ตั้งค่า Max/Min Temperature</button>
-
-    <div class="cards">
-        <div class="card" id="tempCard">
-            🌡 อุณหภูมิ
-            <div id="tempValue" style="font-size:34px; font-weight:bold;">-- °C</div>
-        </div>
-        <div class="card" id="humidityCard">
-            💧 ความชื้น
-            <div id="humidityValue" style="font-size:34px; font-weight:bold;">-- %</div>
-        </div>
-        <div class="card" id="statusCard">
-            ⚠️ สถานะ
-            <div id="statusValue" style="font-size:28px; font-weight:bold;">--</div>
-        </div>
+<div class="card-container">
+    <div class="card" id="tempCard">
+        Temperature: <span id="tempValue">--</span> °C
     </div>
-
-    <div id="map"></div>
-
-    <h2>บันทึกย้อนหลัง</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>วันที่/เวลา</th>
-                <th>อุณหภูมิ</th>
-                <th>ความชื้น</th>
-                <th>สถานะ</th>
-                <th>GPS</th>
-            </tr>
-        </thead>
-        <tbody id="historyTable"></tbody>
-    </table>
-
-    <div class="pagination">
-        <button id="prevBtn" onclick="prevPage()">Previous</button>
-        <button id="nextBtn" onclick="nextPage()">Next</button>
+    <div class="card" id="humCard">
+        Humidity: <span id="humValue">--</span> %
     </div>
 </div>
 
-<!-- Modal -->
-<div id="settingsModal">
+<!-- ✅ SETTINGS MODAL -->
+<div class="modal" id="settingsModal">
     <div class="modal-content">
-        <h3>ตั้งค่าอุณหภูมิแจ้งเตือน</h3>
-        <label>Max Temperature (°C)</label>
-        <input type="number" id="maxTempInput">
-        <label>Min Temperature (°C)</label>
-        <input type="number" id="minTempInput">
-        <button class="save-btn" onclick="saveSettings()">Save</button>
-        <button class="cancel-btn" onclick="closeSettings()">Cancel</button>
+        <h3>Alert Settings</h3>
+        <input type="number" id="maxInput" placeholder="Max Temperature">
+        <input type="number" id="minInput" placeholder="Min Temperature">
+        <button onclick="saveSettings()">Save</button>
+        <button onclick="closeSettings()">Close</button>
     </div>
 </div>
-
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- Firebase JS -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
@@ -112,147 +62,57 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const db = getDatabase();
 
-// Role
-const role = localStorage.getItem("userRole") || "Buyer";
-document.getElementById("roleDisplay").textContent = "Role: " + role;
-if(role==="Seller"){ document.getElementById("settingsBtn").style.display="inline-block"; }
+// ✅ อ่าน Role จาก localStorage
+const role = localStorage.getItem("userRole");
 
-// Leaflet Map
-const map = L.map('map').setView([13.736717,100.523186],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-let marker=null;
-
-// Pagination
-let page=0; const pageSize=10; let historyRecords=[];
-
-// Settings
-let maxTemp=null, minTemp=null;
-const settingsRef = ref(db,'settings');
-onValue(settingsRef, snap=>{
-    const val = snap.val();
-    if(val){ maxTemp=val.maxTemperature||null; minTemp=val.minTemperature||null; }
-});
-
-// Browser Notification
-let alertSent=false;
-if("Notification" in window && Notification.permission!=="granted"){
-    Notification.requestPermission();
+// ✅ ถ้าไม่พบ role → กลับไป login
+if(!role){
+    window.location.href = "login.html";
 }
 
-// Load latest
-const latestRef = ref(db,'latest');
-onValue(latestRef, snap=>{
+// ✅ เฉพาะ Seller ปรับได้
+if(role !== "Seller"){
+    document.getElementById("settingsBtn").disabled = true;
+}
+// ✅ เปิดปิด Modal
+window.openSettings = function(){
+    document.getElementById("settingsModal").style.display = "flex";
+}
+window.closeSettings = function(){
+    document.getElementById("settingsModal").style.display = "none";
+}
+
+// ✅ โหลดค่า Max–Min จาก Firebase
+let maxTemp = null;
+let minTemp = null;
+
+onValue(ref(db, "settings/alertTemperature"), snap=>{
     const data = snap.val();
     if(!data) return;
-    const temp = data.temperature;
-    const hum = data.humidity;
-    let color="green"; let statusText="ปกติ";
-
-    // Color & Status
-    if(maxTemp!==null && minTemp!==null){
-        if(temp>maxTemp){ color="red"; statusText="สูงเกิน"; }
-        else if(temp<minTemp){ color="orange"; statusText="ต่ำเกิน"; }
-    } else { statusText=data.status; }
-
-    document.getElementById("tempValue").textContent=temp+" °C";
-    document.getElementById("humidityValue").textContent=hum+" %";
-    document.getElementById("statusValue").textContent=statusText;
-    document.getElementById("tempCard").style.background=color;
-    document.getElementById("statusCard").style.background=color;
-
-    // Notification
-    if(maxTemp!==null && minTemp!==null){
-        if((temp>maxTemp || temp<minTemp) && !alertSent && Notification.permission==="granted"){
-            new Notification("Cold Guard Alert!", {
-                body: temp>maxTemp ? `Temperature สูงเกิน ${maxTemp}°C!` : `Temperature ต่ำกว่า ${minTemp}°C!`,
-                icon: "https://cdn-icons-png.flaticon.com/512/564/564619.png"
-            });
-            alertSent=true;
-        } else if(temp<=maxTemp && temp>=minTemp){
-            alertSent=false;
-        }
-    }
-
-    // Map
-    if(data.gps){
-        const {lat,lng}=data.gps;
-        if(!marker) marker=L.marker([lat,lng]).addTo(map);
-        else marker.setLatLng([lat,lng]);
-        map.setView([lat,lng],13);
-    }
+    maxTemp = data.max;
+    minTemp = data.min;
+    document.getElementById("maxInput").value = maxTemp;
+    document.getElementById("minInput").value = minTemp;
 });
 
-// Load records_by_day
-import { query, orderByKey } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
-const today=new Date();
-const daysToFetch=(role==="Driver")?7:30;
-let dayKeys=[];
-for(let i=0;i<daysToFetch;i++){
-    const d=new Date(today); d.setDate(today.getDate()-i);
-    dayKeys.push(d.toISOString().slice(0,10));
+// ✅ บันทึกค่า Max–Min
+window.saveSettings = function(){
+    const max = Number(document.getElementById("maxInput").value);
+    const min = Number(document.getElementById("minInput").value);
+    set(ref(db, "settings/alertTemperature"), { max, min });
+    closeSettings();
 }
 
-Promise.all(dayKeys.map(dayKey=>{
-    return new Promise(resolve=>{
-        const dayRef=ref(db,`records_by_day/${dayKey}`);
-        onValue(dayRef,snap=>{
-            const val=snap.val();
-            if(val){ for(const key in val) historyRecords.push({key,data:val[key]}); }
-            resolve();
-        },{onlyOnce:true});
-    });
-})).then(()=>{ historyRecords.sort((a,b)=>new Date(b.key)-new Date(a.key)); renderPage(); });
-
-// Render Table
-function renderPage(){
-    const tbody=document.getElementById("historyTable"); tbody.innerHTML="";
-    const start=page*pageSize; const end=start+pageSize;
-    const pageRecords=historyRecords.slice(start,end);
-    pageRecords.forEach(r=>{
-        const {temperature,humidity,status,gps}=r.data;
-        let color="black";
-        if(maxTemp!==null && minTemp!==null){
-            if(temperature>maxTemp) color="red";
-            else if(temperature<minTemp) color="orange";
-            else color="green";
-        }
-        tbody.innerHTML+=`<tr style="color:${color}">
-            <td>${r.key}</td>
-            <td>${temperature} °C</td>
-            <td>${humidity} %</td>
-            <td>${status}</td>
-            <td>${gps?gps.lat+', '+gps.lng:'--'}</td>
-        </tr>`;
-    });
-    document.getElementById("prevBtn").disabled = page===0;
-    document.getElementById("nextBtn").disabled = end>=historyRecords.length;
-}
-window.nextPage=()=>{ page++; renderPage(); }
-window.prevPage=()=>{ page--; renderPage(); }
-
-// Settings Modal
-function openSettings(){
-    document.getElementById("settingsModal").style.display="flex";
-    onValue(settingsRef,snap=>{
-        const val = snap.val();
-        if(val){
-            document.getElementById("maxTempInput").value=val.maxTemperature||'';
-            document.getElementById("minTempInput").value=val.minTemperature||'';
-        }
-    },{onlyOnce:true});
-}
-function closeSettings(){ document.getElementById("settingsModal").style.display="none"; }
-function saveSettings(){
-    const max = Number(document.getElementById("maxTempInput").value);
-    const min = Number(document.getElementById("minTempInput").value);
-    if(isNaN(max)||isNaN(min)){ alert("กรุณากรอกตัวเลข"); return; }
-    if(min>=max){ alert("Min ต้องน้อยกว่า Max"); return; }
-    update(ref(db,'settings'),{maxTemperature:max,minTemperature:min})
-    .then(()=>{ alert("Saved!"); closeSettings(); })
-    .catch(err=>{ alert("Error:"+err); });
-}
+// ✅ ดึงข้อมูลล่าสุด
+onValue(ref(db, "records/latest"), snap=>{
+    const data = snap.val();
+    if(!data) return;
+    document.getElementById("tempValue").textContent = data.temperature;
+    document.getElementById("humValue").textContent = data.humidity;
+});
 </script>
+
 </body>
 </html>
