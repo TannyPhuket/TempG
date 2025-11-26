@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Redirecting...</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColdGuard</title>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const role = localStorage.getItem('role');
+  if(role){
+    window.location.href = 'full_dashboard.html';
+  } else {
+    window.location.href = 'login.html';
+  }
+});
+</script>
 </head>
 <body>
-
-<script>
-  const role = localStorage.getItem('role');
-
-  if (!role) {
-    window.location.href = "login.html";
-  } else {
-    window.location.href = "full_dashboard.html";
-  }
-</script>
-
+<p>Redirecting...</p>
 </body>
 </html>
