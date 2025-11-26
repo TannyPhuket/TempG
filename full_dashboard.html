@@ -13,17 +13,23 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {margin:0;font-family:Arial;background:#1b1b1b;color:#f5f5f5;}
-header {padding:15px;text-align:center;font-size:24px;font-weight:bold;color:#fff;}
+body {margin:0;font-family:Arial,sans-serif;background:#f0f4f8;color:#333;}
+header {padding:15px;text-align:center;font-size:24px;font-weight:bold;background:#3498db;color:#fff;}
 #dashboard{padding:20px;}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
-.logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#f1c40f;}
+.logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#3498db;}
 .cards{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;}
-.card{flex:1 1 200px;padding:20px;border-radius:10px;color:#fff;font-weight:bold;text-align:center;transition:0.3s;}
-#map, #trendChartContainer{height:350px;border-radius:12px;margin-bottom:20px;}
-#sellerSettings{background:#fff;color:#000;padding:15px;border-radius:10px;margin-bottom:20px;}
+.card{flex:1 1 200px;padding:20px;border-radius:10px;font-weight:bold;text-align:center;transition:0.3s;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+#map, #trendChartContainer{height:350px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+#sellerSettings{background:#fff;padding:15px;border-radius:10px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
 .hidden{display:none;}
-.toggle-btn{padding:8px 16px;margin:5px;background:#34495e;color:#fff;border:none;border-radius:5px;cursor:pointer;}
+.toggle-btn{padding:8px 16px;margin:5px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;}
+input[type=number]{padding:5px 8px;margin-right:10px;border:1px solid #ccc;border-radius:5px;}
+button:hover{opacity:0.9;}
+.card-temp{background:#f39c12;color:#fff;}
+.card-hum{background:#2ecc71;color:#fff;}
+.card-status{background:#3498db;color:#fff;}
+.card-alert{background:#e74c3c;color:#fff;}
 </style>
 </head>
 <body>
@@ -44,9 +50,9 @@ header {padding:15px;text-align:center;font-size:24px;font-weight:bold;color:#ff
 
   <!-- Cards -->
   <div class="cards">
-    <div class="card" id="tempCard">Temperature: -- °C</div>
-    <div class="card" id="humCard">Humidity: -- %</div>
-    <div class="card" id="statusCard">Status: --</div>
+    <div class="card card-temp" id="tempCard">Temperature: -- °C</div>
+    <div class="card card-hum" id="humCard">Humidity: -- %</div>
+    <div class="card card-status" id="statusCard">Status: --</div>
   </div>
 
   <!-- Toggle Map/Chart -->
@@ -64,7 +70,7 @@ header {padding:15px;text-align:center;font-size:24px;font-weight:bold;color:#ff
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -84,20 +90,10 @@ const role = localStorage.getItem('role');
 if(!role){ window.location.href='login.html'; }
 document.getElementById('roleLabel').innerText = role;
 
-// Theme colors
-const roleColors = {Seller:'#f39c12', Buyer:'#2ecc71', Driver:'#3498db'};
-document.getElementById('header').style.backgroundColor = roleColors[role];
-document.getElementById('tempCard').style.backgroundColor = roleColors[role];
-document.getElementById('humCard').style.backgroundColor = roleColors[role];
-document.getElementById('statusCard').style.backgroundColor = roleColors[role];
-
 // Seller settings
 let alertMin = null;
 let alertMax = null;
 if(role==='Seller'){ document.getElementById('sellerSettings').classList.remove('hidden'); }
-
-// Logout
-function logout(){ localStorage.removeItem('role'); window.location.href='login.html'; }
 function saveTempSettings(){
   alertMin = Number(document.getElementById('minTemp').value);
   alertMax = Number(document.getElementById('maxTemp').value);
@@ -113,14 +109,24 @@ let marker = null;
 const ctx = document.getElementById('trendChart').getContext('2d');
 let chart = new Chart(ctx, {
     type:'line',
-    data:{labels:[],datasets:[{label:'Temperature',data:[],borderColor:'#e67e22',fill:false}]} ,
+    data:{labels:[],datasets:[{label:'Temperature (°C)',data:[],borderColor:'#3498db',backgroundColor:'rgba(52,152,219,0.2)',fill:true}]} ,
     options:{
         responsive:true,
         animation:false,
         scales:{y:{beginAtZero:false}},
         plugins:{
             legend:{display:true},
-            tooltip:{mode:'index',intersect:false}
+            tooltip:{
+                mode:'index',
+                intersect:false,
+                callbacks:{
+                    label:function(context){
+                        const idx = context.dataIndex;
+                        const status = context.chart.data.datasets[0].statusData?.[idx] || '';
+                        return `${context.dataset.label}: ${context.parsed.y} °C  | Status: ${status}`;
+                    }
+                }
+            }
         }
     }
 });
@@ -134,7 +140,7 @@ const recordsRef = ref(db,'records');
 onValue(recordsRef, snap=>{
   const data = snap.val();
   if(!data) return;
-  const entries = Object.entries(data).sort((a,b)=>new Date(a[0]) - new Date(b[0]));
+  const entries = Object.entries(data).sort((a,b)=>new Date(a[0])-new Date(b[0]));
   const latest = entries[entries.length-1][1];
 
   const temp = latest.temperature;
@@ -142,18 +148,20 @@ onValue(recordsRef, snap=>{
   const status = latest.status || 'OK';
 
   // Update cards
-  document.getElementById('tempCard').textContent = `Temperature: ${temp} °C`;
-  document.getElementById('humCard').textContent = `Humidity: ${hum} %`;
-  document.getElementById('statusCard').textContent = `Status: ${status}`;
+  const tempCard = document.getElementById('tempCard');
+  const humCard = document.getElementById('humCard');
+  const statusCard = document.getElementById('statusCard');
+
+  tempCard.textContent = `Temperature: ${temp} °C`;
+  humCard.textContent = `Humidity: ${hum} %`;
+  statusCard.textContent = `Status: ${status}`;
 
   // Seller alert
   if(role==='Seller' && alertMin!==null && alertMax!==null){
       if(temp<alertMin || temp>alertMax){
-          document.getElementById('tempCard').style.backgroundColor = '#e74c3c';
+          tempCard.className='card card-alert';
           document.getElementById('alertAudio').play();
-      } else {
-          document.getElementById('tempCard').style.backgroundColor = roleColors[role];
-      }
+      } else { tempCard.className='card card-temp'; }
   }
 
   // Map
@@ -165,20 +173,13 @@ onValue(recordsRef, snap=>{
     map.setView([lat,lng],13);
   }
 
-  // Update trend chart with color highlight
+  // Update trend chart
   const tempData = entries.map(e=>e[1].temperature);
   const labels = entries.map(e=>e[0]);
-  const backgroundColors = tempData.map(t=>{
-      if(role==='Seller' && alertMin!==null && alertMax!==null){
-          return (t<alertMin||t>alertMax)?'#e74c3c':'#e67e22';
-      }
-      return '#e67e22';
-  });
-
+  const statusData = entries.map(e=>e[1].status || '');
   chart.data.labels = labels;
   chart.data.datasets[0].data = tempData;
-  chart.data.datasets[0].borderColor = '#e67e22';
-  chart.data.datasets[0].backgroundColor = backgroundColors;
+  chart.data.datasets[0].statusData = statusData;
   chart.update();
 });
 </script>
