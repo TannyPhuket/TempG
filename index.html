@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +7,12 @@
 <script>
 window.onload = function(){
     const role = localStorage.getItem('role');
-    if(role){
-        // มี role แล้ว → redirect ไป full_dashboard.html
-        window.location.href = "full_dashboard.html";
-    }else{
-        // ไม่มี role → redirect ไป login.html
+    if(!role){
+        // ไม่มี role → redirect ไป login
         window.location.href = "login.html";
+    }else{
+        // มี role → redirect ไป dashboard
+        window.location.href = "full_dashboard.html";
     }
 };
 </script>
