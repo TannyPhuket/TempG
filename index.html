@@ -7,11 +7,11 @@
 <script>
 window.onload = function(){
     const role = localStorage.getItem('role');
-    if(role === "Seller") {
+    if(role==='Seller'){
         window.location.href = "dashboard_seller.html";
-    } else if(role === "Buyer") {
+    } else if(role==='Buyer'){
         window.location.href = "dashboard_buyer.html";
-    } else if(role === "Driver") {
+    } else if(role==='Driver'){
         window.location.href = "dashboard_driver.html";
     } else {
         window.location.href = "login.html";
