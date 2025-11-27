@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Cool Guard - Buyer Dashboard</title>
+<title>Smart Cool Guard - Driver Dashboard</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <style>
 body {margin:0;font-family:Arial;background:#f7f9fc;color:#2c3e50;}
@@ -27,7 +27,7 @@ button:disabled {background:#aaa;}
 </head>
 <body>
 <header>
-<div>Smart Cool Guard Dashboard (Buyer)</div>
+<div>Smart Cool Guard Dashboard (Driver)</div>
 <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
 </header>
 
@@ -120,7 +120,7 @@ function updateCards(latest){
     document.getElementById("cardStatus").innerText = latest.status;
 
     if(soundEnabled){
-        const minT=0, maxT=50; // Buyer sees alert but cannot set
+        const minT=0, maxT=50; // Driver cannot set alert
         if(latest.temperature<minT||latest.temperature>maxT){
             alertSound.play().catch(()=>console.log("Sound blocked"));
         }
