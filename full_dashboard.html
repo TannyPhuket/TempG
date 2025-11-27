@@ -165,7 +165,11 @@ window.saveAlert = ()=>{
 
 function logout(){
     localStorage.removeItem('role');
-    window.location.href="login.html";
+    window.location.href = "login.html";
+}
+
+window.logout = logout; 
+
 }
 
 loadRecords();
