@@ -21,19 +21,16 @@ th {background:#f1f2f6;}
 button {padding:8px 16px;margin:0 5px;background:#2c3e50;color:white;border:none;border-radius:5px;cursor:pointer;}
 button:disabled {background:#aaa;}
 #settings {background:#fff;padding:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;}
-.hidden {display:none;}
 .logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#fff;}
 .logout-btn:hover{opacity:0.7;}
 </style>
 </head>
 <body>
 <header>
-<span>Smart Cool Guard - Seller</span>
+<span>Smart Cool Guard - Seller Dashboard</span>
 <button class="logout-btn" onclick="logout()">🚪 Logout</button>
 </header>
-
 <div class="container">
-<!-- Seller only -->
 <div id="settings">
 <h3>Temperature Alert Setting</h3>
 Min: <input type="number" id="minTemp" placeholder="Min °C">
@@ -63,112 +60,129 @@ Max: <input type="number" id="maxTemp" placeholder="Max °C">
 </div>
 </div>
 
-<audio id="sirenAudio" src="minion_siren.mp3"></audio>
-
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-// Firebase config
 const firebaseConfig = {
- apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
- authDomain: "temperature-cold-guard.firebaseapp.com",
- databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
- projectId: "temperature-cold-guard",
- storageBucket: "temperature-cold-guard.firebasestorage.app",
- messagingSenderId: "29693405672",
- appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+  apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+  authDomain: "temperature-cold-guard.firebaseapp.com",
+  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "temperature-cold-guard",
+  storageBucket: "temperature-cold-guard.appspot.com",
+  messagingSenderId: "29693405672",
+  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
+// Role check
+const role = localStorage.getItem('role');
+if(role!=='Seller') window.location.href="index.html";
+
+// Leaflet map
+let map, marker;
+function initMap(){
+  if(map) return; 
+  map=L.map('map').setView([13.7367,100.5232],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+}
 
 // Pagination
 let page=0; const pageSize=10; let records=[];
 
-// Leaflet map
-let map=null, marker=null;
-function initMap(lat=13.7367,lng=100.5232){
-    if(map) return;
-    map=L.map('map').setView([lat,lng],13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-}
-
 // Load records
 function loadRecords(){
-    const recordsRef=ref(db,"records");
-    onValue(recordsRef, snapshot=>{
-        const data=snapshot.val();
-        records=Object.entries(data||{}).reverse();
-        updateCards(records[0]?.[1]);
-        updateMap(records[0]?.[1]);
-        renderPage();
-    });
+  const recordsRef = ref(db,"records");
+  onValue(recordsRef,snapshot=>{
+    const data = snapshot.val();
+    records = Object.entries(data||{}).reverse();
+    updateCards(records[0]?.[1]);
+    updateMap(records[0]?.[1]);
+    renderPage();
+  });
 }
 
-// Update cards
+// Audio for alert
+const alertAudio = new Audio("minion_siren.mp3");
+alertAudio.loop = true;
+let alertPlaying = false;
+
+// Update dashboard cards
 function updateCards(latest){
-    if(!latest) return;
-    document.getElementById("cardTemp").innerText = latest.temperature+"°C";
-    document.getElementById("cardHum").innerText = latest.humidity+"%";
-    document.getElementById("cardStatus").innerText = latest.status;
+  if(!latest) return;
+  document.getElementById("cardTemp").innerText = latest.temperature+"°C";
+  document.getElementById("cardHum").innerText = latest.humidity+"%";
+  document.getElementById("cardStatus").innerText = latest.status;
 
-    const minT=Number(document.getElementById("minTemp").value);
-    const maxT=Number(document.getElementById("maxTemp").value);
-    const siren=document.getElementById("sirenAudio");
-    if(!isNaN(minT) && !isNaN(maxT) && (latest.temperature<minT || latest.temperature>maxT)){
-        siren.play().catch(e=>console.log("User interaction needed for audio"));
+  const minT = Number(document.getElementById("minTemp").value);
+  const maxT = Number(document.getElementById("maxTemp").value);
+
+  if(!isNaN(minT) && !isNaN(maxT)){
+    if(latest.temperature < minT || latest.temperature > maxT){
+      if(!alertPlaying){
+        alertAudio.play().catch(()=>console.log("User interaction required for sound"));
+        alertPlaying = true;
+      }
+    } else {
+      if(alertPlaying){
+        alertAudio.pause();
+        alertAudio.currentTime = 0;
+        alertPlaying = false;
+      }
     }
+  }
 }
 
-// Update map
+// Map update
 function updateMap(latest){
-    if(!latest || !latest.gps) return;
-    const lat=latest.gps.lat, lng=latest.gps.lng;
-    if(lat===undefined || lng===undefined) return;
-    initMap(lat,lng);
-    if(!marker) marker=L.marker([lat,lng]).addTo(map);
-    else marker.setLatLng([lat,lng]);
-    map.setView([lat,lng],13);
+  if(!latest || !latest.gps) return;
+  initMap();
+  const lat = latest.gps.lat;
+  const lng = latest.gps.lng;
+  if(lat===undefined || lng===undefined) return;
+  if(!marker) marker = L.marker([lat,lng]).addTo(map);
+  else marker.setLatLng([lat,lng]);
+  map.setView([lat,lng],13);
 }
 
-// Table
+// Table render
 function renderPage(){
-    const tbody=document.getElementById("tableBody");
-    const scrollTop=tbody.scrollTop;
-    tbody.innerHTML="";
-    const start=page*pageSize;
-    const end=start+pageSize;
-    const pageRecords=records.slice(start,end);
-    pageRecords.forEach(([time,item])=>{
-        const row=document.createElement("tr");
-        row.innerHTML=`<td>${time}</td>
-        <td>${item.temperature}°C</td>
-        <td>${item.humidity}%</td>
-        <td>${item.gps?.lat||'--'}, ${item.gps?.lng||'--'}</td>
-        <td>${item.status||'--'}</td>`;
-        tbody.appendChild(row);
-    });
-    tbody.scrollTop=scrollTop;
+  const tbody = document.getElementById("tableBody");
+  tbody.innerHTML="";
+  const start = page*pageSize;
+  const end = start+pageSize;
+  const pageRecords = records.slice(start,end);
+  pageRecords.forEach(([time,item])=>{
+    const row=document.createElement("tr");
+    row.innerHTML=`<td>${time}</td>
+      <td>${item.temperature}°C</td>
+      <td>${item.humidity}%</td>
+      <td>${item.gps?.lat||'--'}, ${item.gps?.lng||'--'}</td>
+      <td>${item.status||'--'}</td>`;
+    tbody.appendChild(row);
+  });
 }
 
-// Pagination
-window.nextPage=()=>{ page++; renderPage(); }
-window.prevPage=()=>{ if(page>0) page--; renderPage(); }
+window.nextPage = ()=>{page++; renderPage();}
+window.prevPage = ()=>{if(page>0) page--; renderPage();}
 
-// Save alert
-window.saveAlert=()=>{
-    const minT=Number(document.getElementById("minTemp").value);
-    const maxT=Number(document.getElementById("maxTemp").value);
-    update(ref(db,"settings"),{minTemperature:minT,maxTemperature:maxT});
-    alert("Saved!");
+// Save alert thresholds
+window.saveAlert = ()=>{
+  const minT=Number(document.getElementById("minTemp").value);
+  const maxT=Number(document.getElementById("maxTemp").value);
+  update(ref(db,"settings"),{minTemperature:minT,maxTemperature:maxT});
 }
 
 // Logout
-function logout(){
-    localStorage.removeItem('role');
-    window.location.href="login.html";
+window.logout = ()=>{
+  alertAudio.pause();
+  alertAudio.currentTime = 0;
+  localStorage.removeItem('role');
+  window.location.href="index.html";
 }
-window.logout=logout;
 
 loadRecords();
 </script>
