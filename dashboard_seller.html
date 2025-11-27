@@ -22,28 +22,26 @@ button {padding:8px 16px;margin:0 5px;background:#2c3e50;color:white;border:none
 button:disabled {background:#aaa;}
 #settings {background:#fff;padding:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;}
 .hidden {display:none;}
+.alert {color:red;font-weight:bold;}
 .logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#fff;}
 .logout-btn:hover{opacity:0.7;}
-#enableSoundBtn {background:#e74c3c;color:#fff;margin-bottom:20px;}
 </style>
 </head>
 <body>
 <header>
-<div>Smart Cool Guard Dashboard (<span id="roleLabel"></span>)</div>
+<div>Smart Cool Guard Dashboard (Seller)</div>
 <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
 </header>
 
 <div class="container">
-<!-- Enable Alert Sound -->
-<button id="enableSoundBtn">Enable Alert Sound</button>
-
-<!-- Seller only -->
-<div id="settings" class="hidden">
+<div id="settings">
 <h3>Temperature Alert Setting</h3>
 Min: <input type="number" id="minTemp" placeholder="Min °C">
 Max: <input type="number" id="maxTemp" placeholder="Max °C">
 <button id="saveAlertBtn">Save</button>
 </div>
+
+<button id="enableSoundBtn">Enable Alert Sound</button>
 
 <div class="cards">
 <div class="card">Temperature <div class="value" id="cardTemp">-- °C</div></div>
@@ -84,53 +82,38 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Load role
-const role = localStorage.getItem('role') || 'Guest';
-document.getElementById("roleLabel").innerText = role;
-
-// Show settings only for Seller
-if(role==='Seller') document.getElementById("settings").classList.remove("hidden");
-
-// Pagination
-let page=0; const pageSize=10; let records=[];
-
 // Leaflet map
 let map=null;
+let marker=null;
 function initMap(){
-    if(map) map.remove(); // remove previous map if exists
+    if(map) map.remove();
     map = L.map('map').setView([13.7367,100.5232],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 }
 initMap();
-let marker=null;
 
-// Enable alert sound
+// Enable sound
 const alertSound = document.getElementById('alertSound');
-let soundEnabled = false;
-document.getElementById('enableSoundBtn').addEventListener('click', () => {
-    soundEnabled = true;
+let soundEnabled=false;
+document.getElementById('enableSoundBtn').addEventListener('click', ()=>{
+    soundEnabled=true;
     alertSound.play().then(()=>alertSound.pause());
-    document.getElementById('enableSoundBtn').disabled = true;
+    document.getElementById('enableSoundBtn').disabled=true;
 });
 
 // Logout
-document.getElementById('logoutBtn').addEventListener('click', () => {
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
     localStorage.removeItem('role');
-    window.location.href = "login.html";
+    window.location.href="login.html";
 });
 
-// Save alert settings
-document.getElementById('saveAlertBtn').addEventListener('click', ()=>{
-    const minT=Number(document.getElementById("minTemp").value);
-    const maxT=Number(document.getElementById("maxTemp").value);
-    update(ref(db,"settings"),{minTemperature:minT,maxTemperature:maxT});
-    alert("Saved!");
-});
+// Pagination
+let page=0; const pageSize=10; let records=[];
 
-// Load records
+// Load data
 function loadRecords(){
     const recordsRef=ref(db,"records");
-    onValue(recordsRef, snapshot=>{
+    onValue(recordsRef,snapshot=>{
         const data=snapshot.val();
         records=Object.entries(data||{}).reverse();
         updateCards(records[0]?.[1]);
@@ -139,35 +122,33 @@ function loadRecords(){
     });
 }
 
-// Update cards and check alerts
+// Update cards
 function updateCards(latest){
     if(!latest) return;
     document.getElementById("cardTemp").innerText = latest.temperature+"°C";
     document.getElementById("cardHum").innerText = latest.humidity+"%";
     document.getElementById("cardStatus").innerText = latest.status;
 
-    // Check alert
     const minT = Number(document.getElementById("minTemp").value);
     const maxT = Number(document.getElementById("maxTemp").value);
-    if(role==='Seller' && soundEnabled && !isNaN(minT) && !isNaN(maxT)){
+    if(soundEnabled && !isNaN(minT) && !isNaN(maxT)){
         if(latest.temperature<minT || latest.temperature>maxT){
-            alertSound.play().catch(()=>console.log("Sound blocked by browser."));
+            alertSound.play().catch(()=>console.log("Sound blocked"));
         }
     }
 }
 
 // Update map
 function updateMap(latest){
-    if(!latest || !latest.gps) return;
-    const lat = latest.gps.lat;
-    const lng = latest.gps.lng;
-    if(lat===undefined || lng===undefined) return;
+    if(!latest||!latest.gps) return;
+    const lat=latest.gps.lat; const lng=latest.gps.lng;
+    if(lat===undefined||lng===undefined) return;
     if(!marker) marker=L.marker([lat,lng]).addTo(map);
     else marker.setLatLng([lat,lng]);
     map.setView([lat,lng],13);
 }
 
-// Table render
+// Render table
 function renderPage(){
     const tbody=document.getElementById("tableBody");
     const scrollTop=tbody.scrollTop;
@@ -184,19 +165,23 @@ function renderPage(){
         <td>${item.status||'--'}</td>`;
         tbody.appendChild(row);
     });
-    tbody.scrollTop = scrollTop;
+    tbody.scrollTop=scrollTop;
 }
 
 // Pagination buttons
-document.getElementById('nextPageBtn').addEventListener('click', ()=>{
-    page++; renderPage();
-});
-document.getElementById('prevPageBtn').addEventListener('click', ()=>{
-    if(page>0) page--; renderPage();
+document.getElementById('nextPageBtn').addEventListener('click', ()=>{page++; renderPage();});
+document.getElementById('prevPageBtn').addEventListener('click', ()=>{if(page>0) page--; renderPage();});
+
+// Save alert settings
+document.getElementById('saveAlertBtn').addEventListener('click', ()=>{
+    const minT=Number(document.getElementById("minTemp").value);
+    const maxT=Number(document.getElementById("maxTemp").value);
+    update(ref(db,"settings"),{minTemperature:minT,maxTemperature:maxT});
+    alert("Saved!");
 });
 
-// Initialize
 loadRecords();
 </script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </body>
 </html>
