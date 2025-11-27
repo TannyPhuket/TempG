@@ -1,23 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColdGuard Index</title>
-<script>
-window.onload = function(){
-    const role = localStorage.getItem('role');
-    if(role){
-        // มี role แล้ว → redirect ไป full_dashboard.html
-        window.location.href = "full_dashboard.html";
-    }else{
-        // ไม่มี role → redirect ไป login.html
-        window.location.href = "login.html";
+<title>ColdGuard Loading</title>
+
+<style>
+    body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        font-family: "Arial", sans-serif;
+        overflow: hidden;
     }
-};
-</script>
+
+    .loader-box {
+        text-align: center;
+        color: #fff;
+        animation: fadeIn 1s ease-in-out;
+    }
+
+    .logo {
+        font-size: 32px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        letter-spacing: 2px;
+        animation: pulse 2s infinite ease-in-out;
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid rgba(255,255,255,0.2);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    }
+
+    .text {
+        margin-top: 15px;
+        font-size: 18px;
+        opacity: 0.8;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+        0% { opacity: 0.8; }
+        50% { opacity: 1; }
+        100% { opacity: 0.8; }
+    }
+</style>
+
 </head>
 <body>
-<p>Redirecting...</p>
+
+<div class="loader-box">
+    <div class="logo">ColdGuard</div>
+    <div class="spinner"></div>
+    <div class="text">กำลังโหลดระบบ...</div>
+</div>
+
+<script>
+window.onload = function () {
+    const role = localStorage.getItem('role');
+
+    // เพิ่ม delay เพื่อให้หน้าโหลดแสดงอย่างน้อย 0.8 วินาที (สวยนิดนึง)
+    setTimeout(() => {
+        if (role) {
+            window.location.href = "full_dashboard.html";
+        } else {
+            window.location.href = "login.html";
+        }
+    }, 800);
+};
+</script>
+
 </body>
 </html>
