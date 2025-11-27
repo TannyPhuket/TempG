@@ -17,40 +17,46 @@ header {background:#2c3e50;color:#fff;padding:20px;font-size:22px;display:flex;j
 table {width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;}
 th, td {padding:10px;border-bottom:1px solid #eee;text-align:center;}
 th {background:#f1f2f6;}
+.pagination {margin-top:15px;text-align:center;}
 button {padding:8px 16px;margin:0 5px;background:#2c3e50;color:white;border:none;border-radius:5px;cursor:pointer;}
 button:disabled {background:#aaa;}
 .logout-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#fff;}
 .logout-btn:hover{opacity:0.7;}
+#enableSoundBtn {background:#e74c3c;color:#fff;margin-bottom:20px;}
 </style>
 </head>
 <body>
 <header>
-<span>Smart Cool Guard - Buyer Dashboard</span>
-<button class="logout-btn" onclick="logout()">🚪</button>
+<div>Smart Cool Guard Dashboard (Buyer)</div>
+<button class="logout-btn" id="logoutBtn">🚪 Logout</button>
 </header>
+
 <div class="container">
+<button id="enableSoundBtn">Enable Alert Sound</button>
 
 <div class="cards">
-<div class="card"><h3>Temperature</h3><div class="value" id="cardTemp">-- °C</div></div>
-<div class="card"><h3>Humidity</h3><div class="value" id="cardHum">-- %</div></div>
-<div class="card"><h3>Status</h3><div class="value" id="cardStatus">--</div></div>
+<div class="card">Temperature <div class="value" id="cardTemp">-- °C</div></div>
+<div class="card">Humidity <div class="value" id="cardHum">-- %</div></div>
+<div class="card">Status <div class="value" id="cardStatus">--</div></div>
 </div>
 
 <div id="map"></div>
 
 <table>
 <thead>
-<tr><th>Date/Time</th><th>Temperature</th><th>Humidity</th><th>GPS</th><th>Status</th></tr>
+<tr>
+<th>Date/Time</th><th>Temperature</th><th>Humidity</th><th>GPS</th><th>Status</th>
+</tr>
 </thead>
 <tbody id="tableBody"></tbody>
 </table>
 <div class="pagination">
-<button onclick="prevPage()">Previous</button>
-<button onclick="nextPage()">Next</button>
-</div>
+<button id="prevPageBtn">Previous</button>
+<button id="nextPageBtn">Next</button>
 </div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<audio id="alertSound" src="minion_siren.mp3" preload="auto"></audio>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
@@ -60,25 +66,45 @@ const firebaseConfig = {
  authDomain: "temperature-cold-guard.firebaseapp.com",
  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
  projectId: "temperature-cold-guard",
- storageBucket: "temperature-cold-guard.appspot.com",
+ storageBucket: "temperature-cold-guard.firebasestorage.app",
  messagingSenderId: "29693405672",
  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const role = localStorage.getItem('role');
-if(role !== 'Buyer'){ window.location.href="login.html"; }
-
-let page=0; const pageSize=10; let records=[];
-const map=L.map('map').setView([13.7367,100.5232],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// Leaflet map
+let map=null;
 let marker=null;
+function initMap(){
+    if(map) map.remove();
+    map = L.map('map').setView([13.7367,100.5232],13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+}
+initMap();
 
+// Enable sound
+const alertSound = document.getElementById('alertSound');
+let soundEnabled=false;
+document.getElementById('enableSoundBtn').addEventListener('click', ()=>{
+    soundEnabled=true;
+    alertSound.play().then(()=>alertSound.pause());
+    document.getElementById('enableSoundBtn').disabled=true;
+});
+
+// Logout
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+    localStorage.removeItem('role');
+    window.location.href="login.html";
+});
+
+// Pagination
+let page=0; const pageSize=10; let records=[];
+
+// Load data
 function loadRecords(){
     const recordsRef=ref(db,"records");
-    onValue(recordsRef, snapshot=>{
+    onValue(recordsRef,snapshot=>{
         const data=snapshot.val();
         records=Object.entries(data||{}).reverse();
         updateCards(records[0]?.[1]);
@@ -92,11 +118,18 @@ function updateCards(latest){
     document.getElementById("cardTemp").innerText = latest.temperature+"°C";
     document.getElementById("cardHum").innerText = latest.humidity+"%";
     document.getElementById("cardStatus").innerText = latest.status;
+
+    if(soundEnabled){
+        const minT=0, maxT=50; // Buyer sees alert but cannot set
+        if(latest.temperature<minT||latest.temperature>maxT){
+            alertSound.play().catch(()=>console.log("Sound blocked"));
+        }
+    }
 }
 
 function updateMap(latest){
-    if(!latest || !latest.gps) return;
-    const lat=latest.gps.lat, lng=latest.gps.lng;
+    if(!latest||!latest.gps) return;
+    const lat=latest.gps.lat; const lng=latest.gps.lng;
     if(lat===undefined||lng===undefined) return;
     if(!marker) marker=L.marker([lat,lng]).addTo(map);
     else marker.setLatLng([lat,lng]);
@@ -119,18 +152,14 @@ function renderPage(){
         <td>${item.status||'--'}</td>`;
         tbody.appendChild(row);
     });
-    tbody.scrollTop = scrollTop;
+    tbody.scrollTop=scrollTop;
 }
 
-window.nextPage = ()=>{ page++; renderPage(); }
-window.prevPage = ()=>{ if(page>0) page--; renderPage(); }
-
-function logout(){
-    localStorage.removeItem('role');
-    window.location.href="login.html";
-}
+document.getElementById('nextPageBtn').addEventListener('click', ()=>{page++; renderPage();});
+document.getElementById('prevPageBtn').addEventListener('click', ()=>{if(page>0) page--; renderPage();});
 
 loadRecords();
 </script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </body>
 </html>
