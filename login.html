@@ -3,88 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ColdGuard Login</title>
-
+<title>Smart Cool Guard Login</title>
 <style>
 body {
-    margin: 0;
-    font-family: "Segoe UI", Arial, sans-serif;
-    height: 100vh;
-    background: linear-gradient(135deg, #4a90e2, #67bfff);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    margin:0;
+    font-family:Arial;
+    background:#f0f4f8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
 }
-
-/* Glassmorphism card */
 .container {
-    background: rgba(255,255,255,0.25);
-    backdrop-filter: blur(12px);
-    padding: 45px;
-    width: 330px;
-    border-radius: 18px;
-    text-align: center;
-    color: #fff;
-    box-shadow: 0 12px 35px rgba(0,0,0,0.12);
+    background:#fff;
+    padding:40px;
+    border-radius:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    text-align:center;
 }
-
-h1 {
-    font-size: 28px;
-    margin-bottom: 25px;
-    font-weight: 600;
+h1 {color:#2c3e50;margin-bottom:20px;}
+button {
+    margin:10px;
+    padding:12px 24px;
+    border:none;
+    border-radius:8px;
+    font-weight:bold;
+    cursor:pointer;
+    color:#fff;
+    transition:0.3s;
+    width:160px;
 }
-
-/* Buttons */
-.role-btn {
-    width: 90%;
-    padding: 14px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    color: white;
-    transition: 0.25s;
-    letter-spacing: 0.5px;
-}
-
-.role-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 18px rgba(0,0,0,0.15);
-}
-
-.seller { background: #f39c12; }
-.buyer  { background: #27ae60; }
-.driver { background: #3498db; }
-
-/* Mobile-friendly */
-@media (max-width: 450px) {
-    .container {
-        width: 85%;
-        padding: 35px;
-    }
-}
+button.seller{background:#f39c12;}
+button.buyer{background:#27ae60;}
+button.driver{background:#3498db;}
+button:hover {opacity:0.85;}
 </style>
 </head>
-
 <body>
-
 <div class="container">
-    <h1>ColdGuard Login</h1>
-
-    <button class="role-btn seller" onclick="login('Seller')">Seller</button>
-    <button class="role-btn buyer" onclick="login('Buyer')">Buyer</button>
-    <button class="role-btn driver" onclick="login('Driver')">Driver</button>
+<h1>Smart Cool Guard Login</h1>
+<button class="seller" onclick="login('Seller')">Seller</button>
+<button class="buyer" onclick="login('Buyer')">Buyer</button>
+<button class="driver" onclick="login('Driver')">Driver</button>
 </div>
 
 <script>
 function login(role){
-    localStorage.setItem("role", role);
-    window.location.href = "role_select.html";  
-    // ⬆️  ให้ไปหน้าเลือกบทบาทก่อน (ตามที่คุณต้องการ)
+    localStorage.setItem('role', role);
+    window.location.href = "full_dashboard.html";
 }
 </script>
-
 </body>
 </html>
