@@ -9,25 +9,23 @@ body {margin:0;font-family:Arial;background:#f0f4f8;display:flex;align-items:cen
 .container {background:#fff;padding:40px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);text-align:center;}
 h1 {color:#2c3e50;margin-bottom:20px;}
 button {margin:10px;padding:12px 24px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;color:#fff;transition:0.3s;width:160px;}
-button.seller{background:#f39c12;} 
-button.buyer{background:#27ae60;} 
-button.driver{background:#3498db;}
+button.seller{background:#f39c12;} button.buyer{background:#27ae60;} button.driver{background:#3498db;}
 button:hover {opacity:0.85;}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>Smart Cool Guard</h1>
-<p>Select Your Role</p>
+<h1>Smart Cool Guard Login</h1>
 <button class="seller" onclick="login('Seller')">Seller</button>
 <button class="buyer" onclick="login('Buyer')">Buyer</button>
 <button class="driver" onclick="login('Driver')">Driver</button>
 </div>
-
 <script>
 function login(role){
     localStorage.setItem('role', role);
-    window.location.href = "full_dashboard.html";
+    if(role==='Seller') window.location.href="dashboard_seller.html";
+    else if(role==='Buyer') window.location.href="dashboard_buyer.html";
+    else window.location.href="dashboard_driver.html";
 }
 </script>
 </body>
