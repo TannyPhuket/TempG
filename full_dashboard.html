@@ -61,6 +61,9 @@ Max: <input type="number" id="maxTemp" placeholder="Max °C">
 <button onclick="prevPage()">Previous</button>
 <button onclick="nextPage()">Next</button>
 </div>
+
+<!-- Audio สำหรับไซเรน -->
+<audio id="sirenAudio" src="siren.mp3" preload="auto"></audio>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -95,7 +98,7 @@ const map=L.map('map').setView([13.7367,100.5232],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 let marker=null;
 
-// Load records
+// โหลด records
 function loadRecords(){
     const recordsRef=ref(db,"records");
     onValue(recordsRef, snapshot=>{
@@ -112,6 +115,22 @@ function updateCards(latest){
     document.getElementById("cardTemp").innerText = latest.temperature+"°C";
     document.getElementById("cardHum").innerText = latest.humidity+"%";
     document.getElementById("cardStatus").innerText = latest.status;
+
+    // Check alert สำหรับ Seller
+    if(role==='Seller'){
+        const minT = Number(document.getElementById("minTemp").value);
+        const maxT = Number(document.getElementById("maxTemp").value);
+        const siren = document.getElementById("sirenAudio");
+
+        if(!isNaN(minT) && !isNaN(maxT)){
+            if(latest.temperature<minT || latest.temperature>maxT){
+                if(siren.paused) siren.play(); // เล่นเสียงไซเรน
+            } else {
+                siren.pause();
+                siren.currentTime = 0;
+            }
+        }
+    }
 }
 
 function updateMap(latest){
