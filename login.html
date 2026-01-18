@@ -3,132 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Cool Guard - Login</title>
+<title>Smart Cool Guard | Login</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
 <style>
+:root{
+  --primary:#1f3a5f;
+  --bg:#f2f5f9;
+  --card:#ffffff;
+  --border:#e1e7ef;
+  --text:#2c3e50;
+}
+
+*{box-sizing:border-box}
+
 body{
-    margin:0;
-    font-family:Arial, Helvetica, sans-serif;
-    background:#f0f4f8;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
+  margin:0;
+  font-family:Inter,system-ui;
+  background:linear-gradient(135deg,#e8eef5,#f7f9fc);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
 }
-.container{
-    background:#fff;
-    padding:40px;
-    border-radius:12px;
-    width:360px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.1);
-    text-align:center;
+
+.login-box{
+  background:var(--card);
+  border-radius:20px;
+  padding:42px 48px;
+  width:360px;
+  box-shadow:0 20px 40px rgba(0,0,0,.12);
+  text-align:center;
 }
-h1{margin-bottom:10px;}
-input{
-    width:100%;
-    padding:12px;
-    margin:10px 0;
-    border-radius:8px;
-    border:1px solid #ccc;
+
+.logo{
+  font-size:24px;
+  font-weight:800;
+  color:var(--primary);
+  margin-bottom:8px;
 }
-select{
-    width:100%;
-    padding:12px;
-    margin:10px 0;
-    border-radius:8px;
+
+.subtitle{
+  font-size:14px;
+  color:#6b7c93;
+  margin-bottom:30px;
 }
-button{
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:8px;
-    background:#27ae60;
-    color:#fff;
-    font-size:16px;
-    cursor:pointer;
+
+.role-btn{
+  width:100%;
+  padding:14px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:#fff;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+  margin-bottom:14px;
+  transition:.25s;
 }
-button:hover{opacity:0.9;}
+
+.role-btn:hover{
+  background:#f0f4f8;
+  transform:translateY(-2px);
+}
+
+.role-btn.seller{color:#f39c12}
+.role-btn.buyer{color:#27ae60}
+.role-btn.driver{color:#3498db}
+
+.footer{
+  margin-top:22px;
+  font-size:12px;
+  color:#95a5a6;
+}
 </style>
 </head>
 
 <body>
-<div class="container">
-    <h1>Smart Cool Guard</h1>
-    <p>Login / Register</p>
 
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
+<div class="login-box">
+  <div class="logo">Smart Cool Guard</div>
+  <div class="subtitle">Select your role to continue</div>
 
-    <select id="role">
-        <option value="Seller">Seller</option>
-        <option value="Buyer">Buyer</option>
-        <option value="Driver">Driver</option>
-    </select>
+  <button class="role-btn seller" onclick="login('Seller')">
+    Seller Dashboard
+  </button>
 
-    <button onclick="login()">Login / Register</button>
+  <button class="role-btn buyer" onclick="login('Buyer')">
+    Buyer Dashboard
+  </button>
+
+  <button class="role-btn driver" onclick="login('Driver')">
+    Driver Dashboard
+  </button>
+
+  <div class="footer">
+    Cold Chain Monitoring System
+  </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { 
-    getAuth, 
-    signInWithEmailAndPassword, 
-    createUserWithEmailAndPassword 
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
-import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+<script>
+function login(role){
+  localStorage.setItem("role",role);
 
-/* Firebase Config */
-const firebaseConfig = {
- apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
- authDomain: "temperature-cold-guard.firebaseapp.com",
- databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
- projectId: "temperature-cold-guard",
- storageBucket: "temperature-cold-guard.firebasestorage.app",
- messagingSenderId: "29693405672",
- appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-
-/* Login / Register */
-window.login = async ()=>{
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const role = document.getElementById("role").value;
-
-    try{
-        // พยายาม Login ก่อน
-        const userCred = await signInWithEmailAndPassword(auth, email, password);
-        redirectByRole(userCred.user.uid);
-
-    }catch(error){
-        // ถ้าไม่มี user → สมัครใหม่
-        const userCred = await createUserWithEmailAndPassword(auth, email, password);
-        const uid = userCred.user.uid;
-
-        await set(ref(db,"users/"+uid),{
-            role: role,
-            name: role + " User"
-        });
-
-        redirect(role);
-    }
-};
-
-/* Redirect */
-async function redirectByRole(uid){
-    const snapshot = await get(ref(db,"users/"+uid));
-    const role = snapshot.val().role;
-    redirect(role);
-}
-
-function redirect(role){
-    if(role==="Seller") window.location.href="dashboard_seller.html";
-    if(role==="Buyer") window.location.href="dashboard_buyer.html";
-    if(role==="Driver") window.location.href="dashboard_driver.html";
+  if(role==="Seller") location.href="dashboard_seller.html";
+  else if(role==="Buyer") location.href="dashboard_buyer.html";
+  else if(role==="Driver") location.href="dashboard_driver.html";
 }
 </script>
+
 </body>
 </html>
