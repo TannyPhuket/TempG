@@ -1,28 +1,21 @@
-<script src="auth.js"></script>
-/* ===============================
-   AUTH GUARD
-================================ */
+<!-- auth.js -->
+<script type="module">
+import { auth } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 
-function checkAuth(requiredRole) {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
+export function checkAuth(requiredRole){
+  onAuthStateChanged(auth, user=>{
     const role = localStorage.getItem("role");
-
-    if (!isLoggedIn || !role) {
-        window.location.href = "login.html";
-        return;
+    if(!user || role !== requiredRole){
+      location.href = "index.html";
     }
-
-    if (requiredRole && role !== requiredRole) {
-        alert("Access denied");
-        window.location.href = "login.html";
-    }
+  });
 }
 
-/* ===============================
-   LOGOUT
-================================ */
-function logout() {
+export function logout(){
+  signOut(auth).then(()=>{
     localStorage.clear();
-    window.location.href = "login.html";
+    location.href="index.html";
+  });
 }
 </script>
