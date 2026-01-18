@@ -1,0 +1,33 @@
+body{
+  font-family: Arial;
+  background:#f4f6f8;
+  margin:0;
+  padding:20px;
+}
+
+.card,.box{
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 4px 10px rgba(0,0,0,.1);
+  margin-bottom:20px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns: repeat(3,1fr);
+  gap:20px;
+}
+
+#map{
+  height:400px;
+  border-radius:12px;
+}
+button{
+  padding:10px 16px;
+  border:none;
+  border-radius:8px;
+  background:#3498db;
+  color:#fff;
+  cursor:pointer;
+}
