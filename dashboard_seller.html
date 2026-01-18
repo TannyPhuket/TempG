@@ -2,360 +2,116 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Seller Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Cool Guard | Seller Dashboard</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
-:root{
-  --primary:#1f3a5f;
-  --bg:#f2f5f9;
-  --card:#ffffff;
-  --border:#e1e7ef;
-  --text:#2c3e50;
-  --muted:#7f8c8d;
-  --success:#27ae60;
-  --warning:#f39c12;
-  --danger:#e74c3c;
-}
-
-*{box-sizing:border-box}
-
-body{
-  margin:0;
-  font-family:Inter,system-ui;
-  background:var(--bg);
-  color:var(--text);
-}
-
-header{
-  background:linear-gradient(135deg,var(--primary),#162b45);
-  color:#fff;
-  padding:18px 30px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  box-shadow:0 4px 14px rgba(0,0,0,.2);
-}
-
-.container{
-  max-width:1280px;
-  margin:auto;
-  padding:28px;
-}
-
-/* ===== Section ===== */
-.section{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:18px;
-  box-shadow:0 10px 26px rgba(0,0,0,.06);
-  padding:24px;
-  margin-bottom:28px;
-}
-
-.section-header{
-  margin-bottom:20px;
-}
-
-.section-title{
-  font-size:18px;
-  font-weight:800;
-  color:var(--primary);
-}
-
-.section-sub{
-  font-size:13px;
-  color:var(--muted);
-}
-
-/* ===== Controls ===== */
-input{
-  padding:10px 12px;
-  border-radius:10px;
-  border:1px solid var(--border);
-  width:120px;
-}
-
-button{
-  padding:10px 18px;
-  border:none;
-  border-radius:10px;
-  background:var(--primary);
-  color:#fff;
-  font-weight:600;
-  cursor:pointer;
-}
-
-/* ===== Cards ===== */
-.cards{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  gap:22px;
-}
-
-.card{
-  background:linear-gradient(180deg,#fff,#f9fbfd);
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:26px;
-  text-align:center;
-}
-
-.card-title{
-  font-size:14px;
-  color:var(--muted);
-  margin-bottom:6px;
-}
-
-.card-value{
-  font-size:36px;
-  font-weight:800;
-}
-
-/* ===== Status Badge ===== */
-.badge{
-  display:inline-block;
-  padding:10px 18px;
-  border-radius:999px;
-  font-weight:700;
-  color:#fff;
-}
-
-.badge.normal{background:var(--success)}
-.badge.high{background:var(--danger)}
-.badge.low{background:var(--warning)}
-
-/* ===== Map ===== */
-#map{
-  height:340px;
-  border-radius:16px;
-  border:1px solid var(--border);
-  overflow:hidden;
-  position:relative;
-}
-
-#gpsLost{
-  position:absolute;
-  top:14px;
-  right:14px;
-  background:var(--danger);
-  color:#fff;
-  padding:8px 14px;
-  border-radius:10px;
-  font-size:13px;
-  display:none;
-  z-index:999;
-}
-
-/* ===== Table ===== */
-table{
-  width:100%;
-  border-collapse:separate;
-  border-spacing:0;
-  border-radius:14px;
-  border:1px solid var(--border);
-  overflow:hidden;
-}
-
-th{
-  background:#f1f4f8;
-  padding:14px;
-  font-size:13px;
-  text-transform:uppercase;
-  color:#5f6c7b;
-}
-
-td{
-  padding:14px;
-  border-top:1px solid var(--border);
-}
-
-tr:hover td{
-  background:#f9fbfd;
-}
-
-.pagination{
-  margin-top:20px;
-  display:flex;
-  justify-content:center;
-  gap:14px;
-}
+body{margin:0;font-family:Arial;background:#f4f6f9;}
+header{background:#2c3e50;color:#fff;padding:15px;text-align:center;}
+.container{padding:20px;max-width:1200px;margin:auto;}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;}
+.badge{padding:6px 14px;border-radius:20px;color:#fff;font-weight:bold;}
+.high{background:#e74c3c;}
+.normal{background:#27ae60;}
+.low{background:#f39c12;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:12px;border-bottom:1px solid #ddd;text-align:center;}
+.logout{background:#e74c3c;color:#fff;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;}
 </style>
 </head>
 
 <body>
-  <script src="auth.js"></script>
-<script>
-    checkAuth("Seller");
-</script>
-
 <header>
-  <b>Smart Cool Guard – Seller Dashboard</b>
-  <button class="logout-btn" onclick="logout()">Logout</button>
+  <h1>Smart Cool Guard - Seller</h1>
+  <button class="logout" id="logoutBtn">Logout</button>
 </header>
 
 <div class="container">
 
-<!-- Settings -->
-<div class="section">
-  <div class="section-header">
-    <div class="section-title">Temperature Alert Setting</div>
-    <div class="section-sub">Define safe temperature range</div>
+<div class="cards">
+  <div class="card">
+    <h3>Temperature</h3>
+    <h2 id="temp">-- °C</h2>
+    <span id="tempStatus" class="badge">--</span>
   </div>
-  Min <input type="number" id="minTemp">
-  Max <input type="number" id="maxTemp">
-  <button onclick="saveAlert()">Save</button>
-</div>
-
-<!-- Cards -->
-<div class="section">
-  <div class="section-header">
-    <div class="section-title">Realtime Status</div>
+  <div class="card">
+    <h3>Humidity</h3>
+    <h2 id="humidity">-- %</h2>
   </div>
-  <div class="cards">
-    <div class="card">
-      <div class="card-title">Temperature</div>
-      <div class="card-value" id="cardTemp">-- °C</div>
-    </div>
-    <div class="card">
-      <div class="card-title">Humidity</div>
-      <div class="card-value" id="cardHum">-- %</div>
-    </div>
-    <div class="card">
-      <div class="card-title">System Status</div>
-      <div id="cardStatus"></div>
-    </div>
+  <div class="card">
+    <h3>Location</h3>
+    <p id="location">--</p>
   </div>
 </div>
 
-<!-- Map -->
-<div class="section">
-  <div class="section-header">
-    <div class="section-title">Realtime Location</div>
-    <div class="section-sub">Last known GPS position</div>
-  </div>
-  <div id="map">
-    <div id="gpsLost">GPS Not Found</div>
-  </div>
-</div>
-
-<!-- Table -->
-<div class="section">
-  <div class="section-header">
-    <div class="section-title">Temperature Records</div>
-  </div>
+<div class="card">
+  <h3>History</h3>
   <table>
     <thead>
       <tr>
-        <th>Date / Time</th>
-        <th>Temp</th>
-        <th>Humidity</th>
-        <th>GPS</th>
+        <th>Time</th>
+        <th>Temp (°C)</th>
         <th>Status</th>
       </tr>
     </thead>
-    <tbody id="tableBody"></tbody>
+    <tbody id="history"></tbody>
   </table>
-
-  <div class="pagination">
-    <button onclick="prevPage()">Previous</button>
-    <button onclick="nextPage()">Next</button>
-  </div>
 </div>
 
 </div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { checkAuth, logout } from "./auth.js";
+import { db } from "./firebase.js";
+import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey:"AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-  databaseURL:"https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app"
-};
+checkAuth("Seller");
+document.getElementById("logoutBtn").onclick=logout;
 
-initializeApp(firebaseConfig);
-const db=getDatabase();
+const tempEl=document.getElementById("temp");
+const humEl=document.getElementById("humidity");
+const statusEl=document.getElementById("tempStatus");
+const historyEl=document.getElementById("history");
+const locationEl=document.getElementById("location");
 
-if(localStorage.getItem("role")!=="Seller") location.href="index.html";
+const MIN=2, MAX=8;
 
-let map,marker,lastValid=null;
-let records=[],page=0,pageSize=10;
-
-function initMap(){
-  if(map) return;
-  map=L.map("map").setView([13.7,100.5],13);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+function getStatus(t){
+  if(t>MAX) return {text:"High",cls:"high"};
+  if(t<MIN) return {text:"Low",cls:"low"};
+  return {text:"Normal",cls:"normal"};
 }
 
-function updateMap(r){
-  initMap();
-  const lat=Number(r?.gps?.lat);
-  const lng=Number(r?.gps?.lng);
-  const valid=!isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0);
+onValue(ref(db,"sensor"),snap=>{
+  const d=snap.val();
+  if(!d) return;
 
-  if(valid){
-    lastValid={lat,lng};
-    gpsLost.style.display="none";
-    if(!marker) marker=L.marker([lat,lng]).addTo(map);
-    else marker.setLatLng([lat,lng]);
-    map.setView([lat,lng],13);
-  }else if(lastValid){
-    gpsLost.style.display="block";
-    marker?.setLatLng([lastValid.lat,lastValid.lng]);
-  }
-}
+  tempEl.textContent=d.temperature+" °C";
+  humEl.textContent=d.humidity+" %";
 
-function updateCards(r){
-  const t=Number(r.temperature);
-  cardTemp.textContent=t+" °C";
-  cardHum.textContent=r.humidity+" %";
+  const st=getStatus(d.temperature);
+  statusEl.textContent=st.text;
+  statusEl.className="badge "+st.cls;
 
-  const min=Number(minTemp.value);
-  const max=Number(maxTemp.value);
-
-  let status="Normal",cls="normal";
-  if(!isNaN(min)&&!isNaN(max)){
-    if(t>max){status="High Temperature";cls="high";}
-    else if(t<min){status="Low Temperature";cls="low";}
-  }
-  cardStatus.innerHTML=`<span class="badge ${cls}">${status}</span>`;
-}
-
-function render(){
-  tableBody.innerHTML="";
-  records.slice(page*pageSize,(page+1)*pageSize).forEach(([k,r])=>{
-    const gps=(r.gps?.lat===0&&r.gps?.lng===0)?"Not found":`${r.gps?.lat??"--"}, ${r.gps?.lng??"--"}`;
-    const status=r.temperature>maxTemp.value?"High":r.temperature<minTemp.value?"Low":"Normal";
-    tableBody.innerHTML+=`
-      <tr>
-        <td>${k}</td>
-        <td>${r.temperature}</td>
-        <td>${r.humidity}</td>
-        <td>${gps}</td>
-        <td>${status}</td>
-      </tr>`;
-  });
-}
-
-onValue(ref(db,"records"),s=>{
-  records=Object.entries(s.val()||{}).reverse();
-  if(records[0]){
-    updateCards(records[0][1]);
-    updateMap(records[0][1]);
-  }
-  render();
+  locationEl.textContent = d.lat && d.lng ? d.lat+", "+d.lng : "Not Found";
 });
 
-window.nextPage=()=>{page++;render();}
-window.prevPage=()=>{if(page>0)page--;render();}
-window.saveAlert=()=>update(ref(db,"settings"),{min:minTemp.value,max:maxTemp.value});
-window.logout=()=>{localStorage.clear();location.href="index.html";}
+onValue(ref(db,"history"),snap=>{
+  historyEl.innerHTML="";
+  const data=snap.val();
+  if(!data) return;
+
+  Object.values(data).slice(-10).reverse().forEach(r=>{
+    const st=getStatus(r.temperature);
+    historyEl.innerHTML+=`
+      <tr>
+        <td>${r.time}</td>
+        <td>${r.temperature}</td>
+        <td><span class="badge ${st.cls}">${st.text}</span></td>
+      </tr>`;
+  });
+});
 </script>
 
 </body>
