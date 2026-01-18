@@ -3,178 +3,132 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Cool Guard | Login</title>
+<title>Smart Cool Guard - Login</title>
 
 <style>
-* {
-    box-sizing: border-box;
-    font-family: Arial, Helvetica, sans-serif;
+body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:#f0f4f8;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
 }
-
-body {
-    margin: 0;
-    height: 100vh;
-    background: linear-gradient(135deg, #1e3c72, #2a5298);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.container{
+    background:#fff;
+    padding:40px;
+    border-radius:12px;
+    width:360px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    text-align:center;
 }
-
-.login-card {
-    background: #ffffff;
-    width: 360px;
-    padding: 32px;
-    border-radius: 14px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+h1{margin-bottom:10px;}
+input{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border-radius:8px;
+    border:1px solid #ccc;
 }
-
-.login-card h1 {
-    margin: 0;
-    text-align: center;
-    color: #2c3e50;
+select{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    border-radius:8px;
 }
-
-.login-card p {
-    text-align: center;
-    color: #7f8c8d;
-    margin-bottom: 24px;
+button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    background:#27ae60;
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
 }
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-label {
-    font-size: 14px;
-    color: #34495e;
-}
-
-input {
-    width: 100%;
-    padding: 10px;
-    margin-top: 6px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 14px;
-}
-
-input:focus {
-    outline: none;
-    border-color: #3498db;
-}
-
-button {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    background: #3498db;
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 15px;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-button:hover {
-    background: #2980b9;
-}
-
-.error {
-    margin-top: 12px;
-    color: #e74c3c;
-    font-size: 14px;
-    text-align: center;
-    display: none;
-}
-
-.footer {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 12px;
-    color: #95a5a6;
-}
+button:hover{opacity:0.9;}
 </style>
 </head>
 
 <body>
-
-<div class="login-card">
+<div class="container">
     <h1>Smart Cool Guard</h1>
-    <p>Login to your dashboard</p>
+    <p>Login / Register</p>
 
-    <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="username" placeholder="Enter username">
-    </div>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
 
-    <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="password" placeholder="Enter password">
-    </div>
+    <select id="role">
+        <option value="Seller">Seller</option>
+        <option value="Buyer">Buyer</option>
+        <option value="Driver">Driver</option>
+    </select>
 
-    <button onclick="login()">Login</button>
-
-    <div class="error" id="errorMsg">Invalid username or password</div>
-
-    <div class="footer">
-        © Smart Cool Guard System
-    </div>
+    <button onclick="login()">Login / Register</button>
 </div>
 
-<script>
-/* ===============================
-   MOCK USER DATABASE
-   (แทน Firebase ชั่วคราว)
-================================ */
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { 
+    getAuth, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword 
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-const users = [
-    { username: "seller01", password: "1234", role: "Seller" },
-    { username: "buyer01",  password: "1234", role: "Buyer"  },
-    { username: "driver01", password: "1234", role: "Driver" }
-];
+/* Firebase Config */
+const firebaseConfig = {
+ apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+ authDomain: "temperature-cold-guard.firebaseapp.com",
+ databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId: "temperature-cold-guard",
+ storageBucket: "temperature-cold-guard.firebasestorage.app",
+ messagingSenderId: "29693405672",
+ appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+};
 
-/* ===============================
-   LOGIN FUNCTION
-================================ */
-function login() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    const errorMsg = document.getElementById("errorMsg");
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-    errorMsg.style.display = "none";
+/* Login / Register */
+window.login = async ()=>{
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const role = document.getElementById("role").value;
 
-    if (!username || !password) {
-        errorMsg.textContent = "Please enter username and password";
-        errorMsg.style.display = "block";
-        return;
+    try{
+        // พยายาม Login ก่อน
+        const userCred = await signInWithEmailAndPassword(auth, email, password);
+        redirectByRole(userCred.user.uid);
+
+    }catch(error){
+        // ถ้าไม่มี user → สมัครใหม่
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCred.user.uid;
+
+        await set(ref(db,"users/"+uid),{
+            role: role,
+            name: role + " User"
+        });
+
+        redirect(role);
     }
+};
 
-    const user = users.find(
-        u => u.username === username && u.password === password
-    );
+/* Redirect */
+async function redirectByRole(uid){
+    const snapshot = await get(ref(db,"users/"+uid));
+    const role = snapshot.val().role;
+    redirect(role);
+}
 
-    if (!user) {
-        errorMsg.textContent = "Invalid username or password";
-        errorMsg.style.display = "block";
-        return;
-    }
-
-    // เก็บ session
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("role", user.role);
-    localStorage.setItem("username", user.username);
-
-    // redirect ตาม role
-    if (user.role === "Seller") {
-        window.location.href = "dashboard_seller.html";
-    } else if (user.role === "Buyer") {
-        window.location.href = "dashboard_buyer.html";
-    } else if (user.role === "Driver") {
-        window.location.href = "dashboard_driver.html";
-    }
+function redirect(role){
+    if(role==="Seller") window.location.href="dashboard_seller.html";
+    if(role==="Buyer") window.location.href="dashboard_buyer.html";
+    if(role==="Driver") window.location.href="dashboard_driver.html";
 }
 </script>
-
 </body>
 </html>
