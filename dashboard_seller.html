@@ -5,7 +5,6 @@
 <title>Seller Dashboard - Smart Cool Guard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
@@ -17,14 +16,14 @@ body{
 header{
   background:#f39c12;
   color:#fff;
-  padding:15px 30px;
+  padding:16px 30px;
   font-size:20px;
   font-weight:bold;
 }
 .container{
   padding:20px;
   display:grid;
-  grid-template-columns: repeat(auto-fit,minmax(280px,1fr));
+  grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
   gap:20px;
 }
 .card{
@@ -34,7 +33,7 @@ header{
   box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 .card h3{
-  margin-top:0;
+  margin:0 0 10px;
   color:#2c3e50;
 }
 .value{
@@ -44,9 +43,8 @@ header{
 .status-normal{color:#27ae60;}
 .status-high{color:#e74c3c;}
 .status-low{color:#3498db;}
-
 #map{
-  height:300px;
+  height:320px;
   border-radius:12px;
 }
 </style>
@@ -82,11 +80,13 @@ header{
   </div>
 </div>
 
-<!-- Firebase -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
+/* ---------- Firebase ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
   databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -95,35 +95,38 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ---------- CONFIG ----------
+/* ---------- CONFIG ---------- */
 const TEMP_MIN = 2;
 const TEMP_MAX = 8;
 
-// ---------- MAP ----------
-let map = L.map('map').setView([13.7563, 100.5018], 6);
+/* ---------- MAP ---------- */
+let map = L.map('map').setView([13.7563,100.5018],6);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-let marker = L.marker([13.7563, 100.5018]).addTo(map);
+let marker = L.marker([13.7563,100.5018]).addTo(map);
 
-// ---------- DOM ----------
+/* ---------- DOM ---------- */
 const tempEl = document.getElementById("temp");
 const humEl = document.getElementById("hum");
 const statusEl = document.getElementById("status");
 const locText = document.getElementById("locationText");
 
-// ---------- LISTEN ----------
-onValue(ref(db, "latest"), snap => {
+/* ---------- LISTENER ---------- */
+onValue(ref(db,"latest"), snap=>{
   if(!snap.exists()) return;
+
   const d = snap.val();
 
-  const temp = d.temperature;
-  const hum  = d.humidity;
-  const lat  = d.gps?.lat ?? 0;
-  const lng  = d.gps?.lng ?? 0;
+  const temp = Number(d.temperature ?? 0);
+  const hum  = Number(d.humidity ?? 0);
 
-  tempEl.textContent = temp.toFixed(1) + " °C";
-  humEl.textContent  = hum.toFixed(1) + " %";
+  // ✅ กัน undefined ทุกกรณี
+  const lat = Number(d?.gps?.lat ?? 0);
+  const lng = Number(d?.gps?.lng ?? 0);
 
-  // ---- STATUS ----
+  tempEl.textContent = temp.toFixed(1)+" °C";
+  humEl.textContent  = hum.toFixed(1)+" %";
+
+  /* ---- STATUS ---- */
   if(temp > TEMP_MAX){
     statusEl.textContent = "High Temperature";
     statusEl.className = "value status-high";
@@ -135,7 +138,7 @@ onValue(ref(db, "latest"), snap => {
     statusEl.className = "value status-normal";
   }
 
-  // ---- MAP ----
+  /* ---- MAP ---- */
   if(lat === 0 || lng === 0 || isNaN(lat) || isNaN(lng)){
     locText.textContent = "Location: Not found";
     return;
@@ -143,10 +146,8 @@ onValue(ref(db, "latest"), snap => {
 
   locText.textContent = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
   marker.setLatLng([lat,lng]);
-  map.setView([lat,lng], 15);
+  map.setView([lat,lng],15);
 });
 </script>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </body>
 </html>
