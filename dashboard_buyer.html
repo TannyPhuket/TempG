@@ -137,9 +137,15 @@ th{
 
 <body>
 
+<script src="auth.js"></script>
+<script>
+    checkAuth("Buyer");
+</script>
+
 <header>
   <b>Smart Cool Guard – Buyer Dashboard</b>
-  <button onclick="logout()">Logout</button>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+  
 </header>
 
 <div class="container">
