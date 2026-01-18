@@ -179,10 +179,14 @@ button{
 </head>
 
 <body>
+  <script src="auth.js"></script>
+<script>
+    checkAuth("Driver");
+</script>
 
 <header>
   <b>Smart Cool Guard – Driver Dashboard</b>
-  <button onclick="logout()">Logout</button>
+  <button class="logout-btn" onclick="logout()">Logout</button>
 </header>
 
 <div class="container">
