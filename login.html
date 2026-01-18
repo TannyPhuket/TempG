@@ -3,34 +3,178 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Cool Guard - Login</title>
+<title>Smart Cool Guard | Login</title>
+
 <style>
-body {margin:0;font-family:Arial;background:#f0f4f8;display:flex;align-items:center;justify-content:center;height:100vh;}
-.container {background:#fff;padding:40px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);text-align:center;}
-h1 {color:#2c3e50;margin-bottom:20px;}
-button {margin:10px;padding:12px 24px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;color:#fff;transition:0.3s;width:160px;}
-button.seller{background:#f39c12;} 
-button.buyer{background:#27ae60;} 
-button.driver{background:#3498db;}
-button:hover {opacity:0.85;}
+* {
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    margin: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-card {
+    background: #ffffff;
+    width: 360px;
+    padding: 32px;
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.login-card h1 {
+    margin: 0;
+    text-align: center;
+    color: #2c3e50;
+}
+
+.login-card p {
+    text-align: center;
+    color: #7f8c8d;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+label {
+    font-size: 14px;
+    color: #34495e;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #3498db;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+.error {
+    margin-top: 12px;
+    color: #e74c3c;
+    font-size: 14px;
+    text-align: center;
+    display: none;
+}
+
+.footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: #95a5a6;
+}
 </style>
 </head>
+
 <body>
-<div class="container">
-<h1>Smart Cool Guard</h1>
-<p>Select Your Role</p>
-<button class="seller" onclick="login('Seller')">Seller</button>
-<button class="buyer" onclick="login('Buyer')">Buyer</button>
-<button class="driver" onclick="login('Driver')">Driver</button>
+
+<div class="login-card">
+    <h1>Smart Cool Guard</h1>
+    <p>Login to your dashboard</p>
+
+    <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter username">
+    </div>
+
+    <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter password">
+    </div>
+
+    <button onclick="login()">Login</button>
+
+    <div class="error" id="errorMsg">Invalid username or password</div>
+
+    <div class="footer">
+        © Smart Cool Guard System
+    </div>
 </div>
 
 <script>
-function login(role){
-    localStorage.setItem('role', role);
-    if(role==='Seller') window.location.href="dashboard_seller.html";
-    else if(role==='Buyer') window.location.href="dashboard_buyer.html";
-    else if(role==='Driver') window.location.href="dashboard_driver.html";
+/* ===============================
+   MOCK USER DATABASE
+   (แทน Firebase ชั่วคราว)
+================================ */
+
+const users = [
+    { username: "seller01", password: "1234", role: "Seller" },
+    { username: "buyer01",  password: "1234", role: "Buyer"  },
+    { username: "driver01", password: "1234", role: "Driver" }
+];
+
+/* ===============================
+   LOGIN FUNCTION
+================================ */
+function login() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorMsg = document.getElementById("errorMsg");
+
+    errorMsg.style.display = "none";
+
+    if (!username || !password) {
+        errorMsg.textContent = "Please enter username and password";
+        errorMsg.style.display = "block";
+        return;
+    }
+
+    const user = users.find(
+        u => u.username === username && u.password === password
+    );
+
+    if (!user) {
+        errorMsg.textContent = "Invalid username or password";
+        errorMsg.style.display = "block";
+        return;
+    }
+
+    // เก็บ session
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("role", user.role);
+    localStorage.setItem("username", user.username);
+
+    // redirect ตาม role
+    if (user.role === "Seller") {
+        window.location.href = "dashboard_seller.html";
+    } else if (user.role === "Buyer") {
+        window.location.href = "dashboard_buyer.html";
+    } else if (user.role === "Driver") {
+        window.location.href = "dashboard_driver.html";
+    }
 }
 </script>
+
 </body>
 </html>
