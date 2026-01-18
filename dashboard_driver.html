@@ -20,7 +20,6 @@
   --warning:#f39c12;
   --danger:#e74c3c;
 }
-
 *{box-sizing:border-box}
 
 body{
@@ -46,7 +45,6 @@ header{
   padding:28px;
 }
 
-/* ===== Section ===== */
 .section{
   background:var(--card);
   border:1px solid var(--border);
@@ -54,10 +52,6 @@ header{
   box-shadow:0 10px 26px rgba(0,0,0,.06);
   padding:24px;
   margin-bottom:28px;
-}
-
-.section-header{
-  margin-bottom:20px;
 }
 
 .section-title{
@@ -71,7 +65,6 @@ header{
   color:var(--muted);
 }
 
-/* ===== Cards ===== */
 .cards{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
@@ -89,7 +82,6 @@ header{
 .card-title{
   font-size:14px;
   color:var(--muted);
-  margin-bottom:6px;
 }
 
 .card-value{
@@ -97,28 +89,22 @@ header{
   font-weight:800;
 }
 
-/* ===== Status ===== */
 .badge{
-  display:inline-block;
   padding:10px 18px;
   border-radius:999px;
   font-weight:700;
   color:#fff;
 }
-
 .badge.normal{background:var(--success)}
 .badge.high{background:var(--danger)}
 .badge.low{background:var(--warning)}
 
-/* ===== Map ===== */
 #map{
   height:340px;
   border-radius:16px;
   border:1px solid var(--border);
-  overflow:hidden;
   position:relative;
 }
-
 #gpsLost{
   position:absolute;
   top:14px;
@@ -132,32 +118,25 @@ header{
   z-index:999;
 }
 
-/* ===== Table ===== */
 table{
   width:100%;
   border-collapse:separate;
   border-spacing:0;
-  border-radius:14px;
   border:1px solid var(--border);
+  border-radius:14px;
   overflow:hidden;
 }
-
 th{
   background:#f1f4f8;
   padding:14px;
   font-size:13px;
-  text-transform:uppercase;
   color:#5f6c7b;
 }
-
 td{
   padding:14px;
   border-top:1px solid var(--border);
 }
-
-tr:hover td{
-  background:#f9fbfd;
-}
+tr:hover td{background:#f9fbfd}
 
 .pagination{
   margin-top:20px;
@@ -165,7 +144,6 @@ tr:hover td{
   justify-content:center;
   gap:14px;
 }
-
 button{
   padding:10px 18px;
   border:none;
@@ -181,19 +159,15 @@ button{
 <body>
 
 <header>
-  <b>Smart Cool Guard – Driver Dashboard</b>
+  <b>Smart Cool Guard – Driver</b>
   <button onclick="logout()">Logout</button>
 </header>
 
 <div class="container">
 
-<!-- Realtime Status -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Realtime Status</div>
-    <div class="section-sub">Current temperature and humidity</div>
-  </div>
-
+  <div class="section-title">Realtime Status</div>
+  <div class="section-sub">Current temperature & humidity</div>
   <div class="cards">
     <div class="card">
       <div class="card-title">Temperature</div>
@@ -204,30 +178,22 @@ button{
       <div class="card-value" id="cardHum">-- %</div>
     </div>
     <div class="card">
-      <div class="card-title">System Status</div>
+      <div class="card-title">Status</div>
       <div id="cardStatus"></div>
     </div>
   </div>
 </div>
 
-<!-- Map -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Realtime Location</div>
-    <div class="section-sub">Last known GPS position</div>
-  </div>
-
+  <div class="section-title">Realtime Location</div>
+  <div class="section-sub">Last known GPS</div>
   <div id="map">
     <div id="gpsLost">GPS Not Found</div>
   </div>
 </div>
 
-<!-- Records -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Temperature Records</div>
-  </div>
-
+  <div class="section-title">Temperature Records</div>
   <table>
     <thead>
       <tr>
@@ -240,7 +206,6 @@ button{
     </thead>
     <tbody id="tableBody"></tbody>
   </table>
-
   <div class="pagination">
     <button onclick="prevPage()">Previous</button>
     <button onclick="nextPage()">Next</button>
@@ -255,71 +220,84 @@ button{
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
+/* CONFIG */
+const TEMP_MIN = 2;
+const TEMP_MAX = 8;
+
 const firebaseConfig = {
   apiKey:"AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
   databaseURL:"https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 initializeApp(firebaseConfig);
-const db=getDatabase();
+const db = getDatabase();
 
-if(localStorage.getItem("role")!=="Driver") location.href="index.html";
+if(localStorage.getItem("role")!=="Driver") location.href="login.html";
 
-let map,marker,lastValid=null;
-let records=[],page=0,pageSize=10;
+let map, marker;
+let records=[], page=0, pageSize=10;
 
+/* Map */
 function initMap(){
   if(map) return;
-  map=L.map("map").setView([13.7,100.5],13);
+  map=L.map("map").setView([13.7,100.5],6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 }
 
+/* Status */
+function getStatus(temp){
+  if(temp > TEMP_MAX) return {text:"High Temperature", cls:"high"};
+  if(temp < TEMP_MIN) return {text:"Low Temperature", cls:"low"};
+  return {text:"Normal", cls:"normal"};
+}
+
+/* Cards */
+function updateCards(r){
+  const temp=Number(r.temperature);
+  cardTemp.textContent=temp+" °C";
+  cardHum.textContent=r.humidity+" %";
+  const s=getStatus(temp);
+  cardStatus.innerHTML=`<span class="badge ${s.cls}">${s.text}</span>`;
+}
+
+/* Map */
 function updateMap(r){
   initMap();
   const lat=Number(r?.gps?.lat);
   const lng=Number(r?.gps?.lng);
   const valid=!isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0);
 
-  if(valid){
-    lastValid={lat,lng};
-    gpsLost.style.display="none";
-    if(!marker) marker=L.marker([lat,lng]).addTo(map);
-    else marker.setLatLng([lat,lng]);
-    map.setView([lat,lng],13);
-  }else{
+  if(!valid){
     gpsLost.style.display="block";
+    return;
   }
+
+  gpsLost.style.display="none";
+  if(!marker) marker=L.marker([lat,lng]).addTo(map);
+  else marker.setLatLng([lat,lng]);
+  map.setView([lat,lng],13);
 }
 
-function updateCards(r){
-  const t=Number(r.temperature);
-  cardTemp.textContent=t+" °C";
-  cardHum.textContent=r.humidity+" %";
-
-  let status="Normal",cls="normal";
-  if(r.status==="High"){status="High Temperature";cls="high";}
-  else if(r.status==="Low"){status="Low Temperature";cls="low";}
-
-  cardStatus.innerHTML=`<span class="badge ${cls}">${status}</span>`;
-}
-
+/* Table */
 function render(){
   tableBody.innerHTML="";
   records.slice(page*pageSize,(page+1)*pageSize).forEach(([k,r])=>{
-    const gps=(r.gps?.lat===0&&r.gps?.lng===0)?"Not found":`${r.gps?.lat??"--"}, ${r.gps?.lng??"--"}`;
+    const s=getStatus(Number(r.temperature));
+    const gps=(!r.gps||r.gps.lat===0&&r.gps.lng===0)?"Not found":`${r.gps.lat}, ${r.gps.lng}`;
     tableBody.innerHTML+=`
       <tr>
         <td>${k}</td>
         <td>${r.temperature}</td>
         <td>${r.humidity}</td>
         <td>${gps}</td>
-        <td>${r.status??"Normal"}</td>
+        <td class="${s.cls}">${s.text}</td>
       </tr>`;
   });
 }
 
-onValue(ref(db,"records"),s=>{
-  records=Object.entries(s.val()||{}).reverse();
+/* Firebase */
+onValue(ref(db,"records"),snap=>{
+  records=Object.entries(snap.val()||{}).reverse();
   if(records[0]){
     updateCards(records[0][1]);
     updateMap(records[0][1]);
@@ -327,8 +305,8 @@ onValue(ref(db,"records"),s=>{
   render();
 });
 
-window.nextPage=()=>{page++;render();}
-window.prevPage=()=>{if(page>0)page--;render();}
+window.nextPage=()=>{if((page+1)*pageSize<records.length){page++;render();}}
+window.prevPage=()=>{if(page>0){page--;render();}}
 window.logout=()=>{localStorage.clear();location.href="login.html";}
 </script>
 
