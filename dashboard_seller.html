@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Cool Guard | Seller Dashboard</title>
 
-<!-- Google Font -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-<!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
@@ -20,84 +17,59 @@
   --text:#2c3e50;
   --muted:#7f8c8d;
   --success:#27ae60;
+  --warning:#f39c12;
   --danger:#e74c3c;
 }
 
-*{box-sizing:border-box}
-
 body{
   margin:0;
-  font-family:'Inter', Arial, sans-serif;
+  font-family:'Inter',sans-serif;
   background:var(--bg);
   color:var(--text);
 }
 
-/* ===== Header ===== */
 header{
   background:linear-gradient(135deg,var(--primary),#162b45);
   color:#fff;
   padding:18px 30px;
-  font-size:22px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  box-shadow:0 2px 10px rgba(0,0,0,0.15);
 }
 
-.logout-btn{
-  background:none;
-  border:none;
-  font-size:20px;
-  cursor:pointer;
-  color:#fff;
-}
-
-/* ===== Layout ===== */
 .container{
   max-width:1200px;
   margin:auto;
   padding:24px;
 }
 
-/* ===== Settings ===== */
-#settings{
+#settings,.card,table{
   background:var(--card);
+  border-radius:16px;
+  box-shadow:0 4px 16px rgba(0,0,0,.08);
+}
+
+#settings{
   padding:20px;
-  border-radius:14px;
-  box-shadow:0 4px 14px rgba(0,0,0,0.08);
   margin-bottom:24px;
 }
 
-#settings h3{
-  margin-top:0;
-  font-weight:600;
-}
-
-input[type="number"]{
-  padding:8px 10px;
+input{
+  padding:8px;
   border-radius:6px;
-  border:1px solid #ddd;
+  border:1px solid #ccc;
   width:100px;
-  margin-right:8px;
 }
 
-/* ===== Buttons ===== */
 button{
-  padding:8px 18px;
-  background:var(--primary);
-  color:#fff;
+  padding:8px 16px;
   border:none;
   border-radius:6px;
+  background:var(--primary);
+  color:#fff;
   cursor:pointer;
-  font-weight:500;
-  transition:.2s;
 }
 
-button:hover{
-  background:var(--accent);
-}
-
-/* ===== Cards ===== */
 .cards{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
@@ -106,40 +78,51 @@ button:hover{
 }
 
 .card{
-  background:var(--card);
   padding:22px;
-  border-radius:16px;
-  box-shadow:0 4px 16px rgba(0,0,0,0.08);
   text-align:center;
 }
 
-.card h3{
-  margin:0 0 8px;
-  font-size:14px;
-  color:var(--muted);
-}
-
-.card .value{
-  font-size:34px;
+.value{
+  font-size:32px;
   font-weight:700;
 }
 
-/* ===== Map ===== */
+.badge{
+  display:inline-block;
+  padding:6px 14px;
+  border-radius:999px;
+  font-weight:600;
+  color:#fff;
+}
+
+.badge.normal{background:var(--success)}
+.badge.high{background:var(--danger)}
+.badge.low{background:var(--warning)}
+
 #map{
   height:320px;
   border-radius:16px;
-  box-shadow:0 4px 16px rgba(0,0,0,0.1);
   margin-bottom:24px;
+  position:relative;
 }
 
-/* ===== Table ===== */
+#gpsLost{
+  position:absolute;
+  top:12px;
+  right:12px;
+  background:var(--danger);
+  color:#fff;
+  padding:6px 12px;
+  border-radius:8px;
+  font-size:13px;
+  display:none;
+  z-index:999;
+}
+
 table{
   width:100%;
   border-collapse:collapse;
-  background:var(--card);
-  border-radius:16px;
   overflow:hidden;
-  box-shadow:0 4px 16px rgba(0,0,0,0.08);
 }
 
 th,td{
@@ -150,7 +133,6 @@ th,td{
 
 th{
   background:#f1f4f8;
-  font-weight:600;
 }
 
 .pagination{
@@ -163,199 +145,167 @@ th{
 <body>
 
 <header>
-  <span>Smart Cool Guard – Seller Dashboard</span>
-  <button class="logout-btn" onclick="logout()">🚪</button>
+  <b>Smart Cool Guard – Seller Dashboard</b>
+  <button onclick="logout()">Logout</button>
 </header>
 
 <div class="container">
 
-  <!-- SETTINGS -->
-  <div id="settings">
-    <h3>Temperature Alert Setting</h3>
-    Min <input type="number" id="minTemp" placeholder="°C">
-    Max <input type="number" id="maxTemp" placeholder="°C">
-    <button onclick="saveAlert()">Save</button>
+<div id="settings">
+  <h3>Temperature Alert Setting</h3>
+  Min <input type="number" id="minTemp">
+  Max <input type="number" id="maxTemp">
+  <button onclick="saveAlert()">Save</button>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div>Temperature</div>
+    <div class="value" id="cardTemp">-- °C</div>
   </div>
-
-  <!-- CARDS -->
-  <div class="cards">
-    <div class="card">
-      <h3>Temperature</h3>
-      <div class="value" id="cardTemp">-- °C</div>
-    </div>
-    <div class="card">
-      <h3>Humidity</h3>
-      <div class="value" id="cardHum">-- %</div>
-    </div>
-    <div class="card">
-      <h3>Status</h3>
-      <div class="value" id="cardStatus">--</div>
-    </div>
+  <div class="card">
+    <div>Humidity</div>
+    <div class="value" id="cardHum">-- %</div>
   </div>
-
-  <!-- MAP -->
-  <div id="map"></div>
-
-  <!-- TABLE -->
-  <table>
-    <thead>
-      <tr>
-        <th>Date / Time</th>
-        <th>Temperature</th>
-        <th>Humidity</th>
-        <th>GPS</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
-
-  <div class="pagination">
-    <button onclick="prevPage()">Previous</button>
-    <button onclick="nextPage()">Next</button>
+  <div class="card">
+    <div>Status</div>
+    <div id="cardStatus"></div>
   </div>
+</div>
+
+<div id="map">
+  <div id="gpsLost">GPS Signal Lost</div>
+</div>
+
+<table>
+<thead>
+<tr>
+  <th>Date / Time</th>
+  <th>Temp</th>
+  <th>Hum</th>
+  <th>GPS</th>
+  <th>Status</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<div class="pagination">
+  <button onclick="prevPage()">Previous</button>
+  <button onclick="nextPage()">Next</button>
+</div>
 
 </div>
 
-<!-- Scripts -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { getDatabase, ref, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-/* ===== Firebase ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
-  authDomain: "temperature-cold-guard.firebaseapp.com",
-  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "temperature-cold-guard",
-  storageBucket: "temperature-cold-guard.appspot.com",
-  messagingSenderId: "29693405672",
-  appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+  databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ===== Role Check ===== */
-if(localStorage.getItem("role")!=="Seller"){
-  window.location.href="index.html";
-}
+if(localStorage.getItem("role")!=="Seller") location.href="index.html";
 
-/* ===== Map ===== */
-let map, marker;
-let lastKnownLocation = null;
+let map,marker,lastKnownLocation=null;
+let page=0,pageSize=10,records=[];
+const alertAudio=new Audio("minion_siren.mp3");
+alertAudio.loop=true;
+let alertPlaying=false;
 
 function initMap(){
   if(map) return;
-  map = L.map('map').setView([13.7367,100.5232],13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  map=L.map("map").setView([13.7,100.5],13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 }
 
-/* ===== Audio Alert ===== */
-const alertAudio = new Audio("minion_siren.mp3");
-alertAudio.loop = true;
-let alertPlaying = false;
+function updateMap(latest){
+  initMap();
+  const lat=Number(latest?.gps?.lat);
+  const lng=Number(latest?.gps?.lng);
 
-/* ===== Pagination ===== */
-let page = 0;
-const pageSize = 10;
-let records = [];
+  const valid=!isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0);
 
-/* ===== Load Records ===== */
-function loadRecords(){
-  onValue(ref(db,"records"), snap=>{
-    const data = snap.val() || {};
-    records = Object.entries(data).reverse();
-    updateCards(records[0]?.[1]);
-    updateMap(records[0]?.[1]);
-    renderPage();
-  });
-}
-
-/* ===== Cards Update ===== */
-function updateCards(latest){
-  if(!latest) return;
-
-  cardTemp.textContent = latest.temperature + " °C";
-  cardHum.textContent  = latest.humidity + " %";
-  cardStatus.textContent = latest.status || "--";
-
-  const minT = Number(minTemp.value);
-  const maxT = Number(maxTemp.value);
-
-  if(!isNaN(minT) && !isNaN(maxT)){
-    if(latest.temperature < minT || latest.temperature > maxT){
-      cardStatus.style.color = "var(--danger)";
-      if(!alertPlaying){
-        alertAudio.play().catch(()=>{});
-        alertPlaying = true;
-      }
-    }else{
-      cardStatus.style.color = "var(--success)";
-      alertAudio.pause();
-      alertAudio.currentTime = 0;
-      alertPlaying = false;
-    }
+  if(valid){
+    document.getElementById("gpsLost").style.display="none";
+    lastKnownLocation={lat,lng};
+    if(!marker) marker=L.marker([lat,lng]).addTo(map);
+    else marker.setLatLng([lat,lng]);
+    map.setView([lat,lng],13);
+  }else{
+    document.getElementById("gpsLost").style.display="block";
   }
 }
 
-/* ===== Map Update (ตรึงตำแหน่งล่าสุด) ===== */
-function updateMap(latest){
-  initMap();
-
-  let lat,lng;
-  if(latest?.gps?.lat !== undefined){
-    lat = latest.gps.lat;
-    lng = latest.gps.lng;
-    lastKnownLocation = {lat,lng};
-  }else if(lastKnownLocation){
-    lat = lastKnownLocation.lat;
-    lng = lastKnownLocation.lng;
-  }else return;
-
-  if(!marker) marker = L.marker([lat,lng]).addTo(map);
-  else marker.setLatLng([lat,lng]);
-
-  map.setView([lat,lng],13,{animate:true});
-}
-
-/* ===== Table ===== */
-function renderPage(){
-  tableBody.innerHTML="";
-  records.slice(page*pageSize,(page+1)*pageSize)
-    .forEach(([time,r])=>{
-      tableBody.innerHTML += `
-        <tr>
-          <td>${time}</td>
-          <td>${r.temperature} °C</td>
-          <td>${r.humidity} %</td>
-          <td>${r.gps?.lat ?? "--"}, ${r.gps?.lng ?? "--"}</td>
-          <td>${r.status ?? "--"}</td>
-        </tr>`;
-    });
-}
-
-window.nextPage = ()=>{page++; renderPage();}
-window.prevPage = ()=>{if(page>0) page--; renderPage();}
-
-/* ===== Save Alert ===== */
-window.saveAlert = ()=>{
-  update(ref(db,"settings"),{
-    minTemperature:Number(minTemp.value),
-    maxTemperature:Number(maxTemp.value)
+function logAlert(type,temp){
+  push(ref(db,"alerts"),{
+    type,
+    temperature:temp,
+    time:new Date().toISOString()
   });
 }
 
-/* ===== Logout ===== */
-window.logout = ()=>{
-  alertAudio.pause();
-  localStorage.removeItem("role");
-  window.location.href="index.html";
+function updateCards(latest){
+  const temp=Number(latest.temperature);
+  cardTemp.textContent=temp+" °C";
+  cardHum.textContent=latest.humidity+" %";
+
+  const minT=Number(minTemp.value);
+  const maxT=Number(maxTemp.value);
+
+  let status="Normal",cls="normal";
+
+  if(!isNaN(minT)&&!isNaN(maxT)){
+    if(temp>maxT){
+      status="High Temperature"; cls="high";
+      if(!alertPlaying){alertAudio.play();alertPlaying=true;logAlert("HIGH",temp);}
+    }
+    else if(temp<minT){
+      status="Low Temperature"; cls="low";
+      if(!alertPlaying){alertAudio.play();alertPlaying=true;logAlert("LOW",temp);}
+    }
+    else{
+      alertAudio.pause();alertPlaying=false;
+    }
+  }
+
+  cardStatus.innerHTML=`<span class="badge ${cls}">${status}</span>`;
 }
 
-loadRecords();
+function renderPage(){
+  tableBody.innerHTML="";
+  records.slice(page*pageSize,(page+1)*pageSize).forEach(([t,r])=>{
+    const gps=(r.gps?.lat===0&&r.gps?.lng===0)?"Not found":`${r.gps?.lat??"--"},${r.gps?.lng??"--"}`;
+    tableBody.innerHTML+=`
+    <tr>
+      <td>${t}</td>
+      <td>${r.temperature}</td>
+      <td>${r.humidity}</td>
+      <td>${gps}</td>
+      <td>${r.temperature>maxTemp.value?"High":r.temperature<minTemp.value?"Low":"Normal"}</td>
+    </tr>`;
+  });
+}
+
+onValue(ref(db,"records"),s=>{
+  records=Object.entries(s.val()||{}).reverse();
+  if(records[0]){
+    updateCards(records[0][1]);
+    updateMap(records[0][1]);
+  }
+  renderPage();
+});
+
+window.nextPage=()=>{page++;renderPage();}
+window.prevPage=()=>{if(page>0)page--;renderPage();}
+window.saveAlert=()=>update(ref(db,"settings"),{min:minTemp.value,max:maxTemp.value});
+window.logout=()=>{localStorage.clear();location.href="index.html";}
 </script>
 
 </body>
