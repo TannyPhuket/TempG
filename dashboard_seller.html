@@ -1,117 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Seller Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-body{margin:0;font-family:Arial;background:#f4f6f9;}
-header{background:#2c3e50;color:#fff;padding:15px;text-align:center;}
-.container{padding:20px;max-width:1200px;margin:auto;}
-.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;}
-.badge{padding:6px 14px;border-radius:20px;color:#fff;font-weight:bold;}
-.high{background:#e74c3c;}
-.normal{background:#27ae60;}
-.low{background:#f39c12;}
-table{width:100%;border-collapse:collapse;}
-th,td{padding:12px;border-bottom:1px solid #ddd;text-align:center;}
-.logout{background:#e74c3c;color:#fff;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-<header>
-  <h1>Smart Cool Guard - Seller</h1>
-  <button class="logout" id="logoutBtn">Logout</button>
-</header>
 
-<div class="container">
-
-<div class="cards">
-  <div class="card">
-    <h3>Temperature</h3>
-    <h2 id="temp">-- °C</h2>
-    <span id="tempStatus" class="badge">--</span>
-  </div>
-  <div class="card">
-    <h3>Humidity</h3>
-    <h2 id="humidity">-- %</h2>
-  </div>
-  <div class="card">
-    <h3>Location</h3>
-    <p id="location">--</p>
-  </div>
-</div>
-
-<div class="card">
-  <h3>History</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>Temp (°C)</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="history"></tbody>
-  </table>
-</div>
-
+<div class="box">
+  <h3>Set Temperature Alert</h3>
+  <input type="number" id="limit" value="5">
+  <button onclick="save()">Save</button>
 </div>
 
 <script type="module">
-import { checkAuth, logout } from "./auth.js";
 import { db } from "./firebase.js";
-import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { ref, set } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
-checkAuth("Seller");
-document.getElementById("logoutBtn").onclick=logout;
-
-const tempEl=document.getElementById("temp");
-const humEl=document.getElementById("humidity");
-const statusEl=document.getElementById("tempStatus");
-const historyEl=document.getElementById("history");
-const locationEl=document.getElementById("location");
-
-const MIN=2, MAX=8;
-
-function getStatus(t){
-  if(t>MAX) return {text:"High",cls:"high"};
-  if(t<MIN) return {text:"Low",cls:"low"};
-  return {text:"Normal",cls:"normal"};
+function save(){
+  const limit = document.getElementById("limit").value;
+  set(ref(db,"setting/temp_limit"), Number(limit));
+  alert("Saved");
 }
-
-onValue(ref(db,"sensor"),snap=>{
-  const d=snap.val();
-  if(!d) return;
-
-  tempEl.textContent=d.temperature+" °C";
-  humEl.textContent=d.humidity+" %";
-
-  const st=getStatus(d.temperature);
-  statusEl.textContent=st.text;
-  statusEl.className="badge "+st.cls;
-
-  locationEl.textContent = d.lat && d.lng ? d.lat+", "+d.lng : "Not Found";
-});
-
-onValue(ref(db,"history"),snap=>{
-  historyEl.innerHTML="";
-  const data=snap.val();
-  if(!data) return;
-
-  Object.values(data).slice(-10).reverse().forEach(r=>{
-    const st=getStatus(r.temperature);
-    historyEl.innerHTML+=`
-      <tr>
-        <td>${r.time}</td>
-        <td>${r.temperature}</td>
-        <td><span class="badge ${st.cls}">${st.text}</span></td>
-      </tr>`;
-  });
-});
 </script>
 
 </body>
