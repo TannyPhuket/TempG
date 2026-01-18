@@ -187,10 +187,14 @@ tr:hover td{
 </head>
 
 <body>
+  <script src="auth.js"></script>
+<script>
+    checkAuth("Seller");
+</script>
 
 <header>
   <b>Smart Cool Guard – Seller Dashboard</b>
-  <button onclick="logout()">Logout</button>
+  <button class="logout-btn" onclick="logout()">Logout</button>
 </header>
 
 <div class="container">
