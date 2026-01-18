@@ -1,25 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart Cool Guard</title>
-<script>
-window.onload = function(){
-    const role = localStorage.getItem('role');
-    if(role==='Seller'){
-        window.location.href = "dashboard_seller.html";
-    } else if(role==='Buyer'){
-        window.location.href = "dashboard_buyer.html";
-    } else if(role==='Driver'){
-        window.location.href = "dashboard_driver.html";
-    } else {
-        window.location.href = "login.html";
-    }
-};
-</script>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<p>Redirecting...</p>
+
+<div class="card">
+  <h1>Smart Cool Guard</h1>
+  <p>Select your role</p>
+
+  <button onclick="login('seller')">Seller</button>
+  <button onclick="login('buyer')">Buyer</button>
+  <button onclick="login('driver')">Driver</button>
+</div>
+
+<script>
+function login(role){
+  localStorage.setItem("role", role);
+
+  if(role === "seller"){
+    location.href = "dashboard_seller.html";
+  }else{
+    location.href = "dashboard_view.html";
+  }
+}
+</script>
+
 </body>
 </html>
