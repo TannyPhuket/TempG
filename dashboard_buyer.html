@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Cool Guard - Buyer Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:#f4f6f9;
+    color:#2c3e50;
+}
+header{
+    background:#27ae60;
+    color:#fff;
+    padding:18px 24px;
+    font-size:22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+.logout-btn{
+    background:none;
+    border:none;
+    font-size:22px;
+    cursor:pointer;
+    color:#fff;
+}
+.logout-btn:hover{opacity:0.8;}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+}
+
+.section{
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+    padding:20px;
+    margin-bottom:20px;
+}
+
+.cards{
+    display:flex;
+    gap:20px;
+}
+.card{
+    flex:1;
+    text-align:center;
+    padding:20px;
+    border-radius:10px;
+    background:#fdfdfd;
+    border:1px solid #eee;
+}
+.card-title{
+    font-size:15px;
+    color:#777;
+    margin-bottom:8px;
+}
+.card-value{
+    font-size:34px;
+    font-weight:bold;
+}
+
+.status-high{color:#e74c3c;}
+.status-low{color:#3498db;}
+.status-normal{color:#27ae60;}
+
+#map{
+    height:320px;
+    border-radius:10px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+th, td{
+    padding:12px;
+    border-bottom:1px solid #eee;
+    text-align:center;
+}
+th{
+    background:#f1f2f6;
+}
+tr:hover{
+    background:#fafafa;
+}
+
+.pagination{
+    text-align:center;
+    margin-top:15px;
+}
+button{
+    padding:8px 16px;
+    margin:0 5px;
+    background:#27ae60;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+button:disabled{
+    background:#aaa;
+    cursor:not-allowed;
+}
+</style>
+</head>
+
+<body>
+<header>
+    <span>Smart Cool Guard - Buyer</span>
+    <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+</header>
+
+<div class="container">
+
+    <!-- Summary Cards -->
+    <div class="section">
+        <div class="cards">
+            <div class="card">
+                <div class="card-title">Temperature</div>
+                <div class="card-value" id="cardTemp">-- °C</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Humidity</div>
+                <div class="card-value" id="cardHum">-- %</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Status</div>
+                <div class="card-value" id="cardStatus">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div class="section">
+        <h3>Current Location</h3>
+        <div id="map"></div>
+    </div>
+
+    <!-- Table -->
+    <div class="section">
+        <h3>Temperature Records</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date / Time</th>
+                    <th>Temperature</th>
+                    <th>Humidity</th>
+                    <th>GPS</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button onclick="prevPage()">Previous</button>
+            <button onclick="nextPage()">Next</button>
+        </div>
+    </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
+/* ================= CONFIG ================= */
+const TEMP_MIN = 2;   // ปรับได้
+const TEMP_MAX = 8;   // ปรับได้
+
+const firebaseConfig = {
+ apiKey: "AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+ authDomain: "temperature-cold-guard.firebaseapp.com",
+ databaseURL: "https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId: "temperature-cold-guard",
+ storageBucket: "temperature-cold-guard.firebasestorage.app",
+ messagingSenderId: "29693405672",
+ appId: "1:29693405672:web:9815de4ba98e7e4cf3dc5d"
+};
+/* ========================================== */
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* Pagination */
+let page = 0;
+const pageSize = 10;
+let records = [];
+
+/* Leaflet */
+let map, marker;
+function initMap(){
+    if(map) return;
+    map = L.map("map").setView([13.7367,100.5232], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+}
+
+/* Status logic */
+function getStatus(temp){
+    if(temp > TEMP_MAX) return {text:"High Temperature", cls:"status-high"};
+    if(temp < TEMP_MIN) return {text:"Low Temperature", cls:"status-low"};
+    return {text:"Normal", cls:"status-normal"};
+}
+
+/* Load data */
+function loadRecords(){
+    const recordsRef = ref(db,"records");
+    onValue(recordsRef, snapshot=>{
+        const data = snapshot.val() || {};
+        records = Object.entries(data).reverse();
+        const latest = records[0]?.[1];
+        updateCards(latest);
+        updateMap(latest);
+        renderPage();
+    });
+}
+
+/* Cards */
+function updateCards(latest){
+    if(!latest) return;
+
+    const status = getStatus(latest.temperature);
+
+    document.getElementById("cardTemp").innerText = `${latest.temperature} °C`;
+    document.getElementById("cardHum").innerText  = `${latest.humidity} %`;
+
+    const statusEl = document.getElementById("cardStatus");
+    statusEl.innerText = status.text;
+    statusEl.className = `card-value ${status.cls}`;
+}
+
+/* Map */
+function updateMap(latest){
+    initMap();
+    if(!latest?.gps) return;
+
+    const {lat, lng} = latest.gps;
+
+    if(!lat || !lng){
+        document.getElementById("map").innerHTML =
+            "<p style='text-align:center;padding:40px;color:#888;'>Location not found</p>";
+        return;
+    }
+
+    if(!marker){
+        marker = L.marker([lat,lng]).addTo(map);
+    }else{
+        marker.setLatLng([lat,lng]);
+    }
+    map.setView([lat,lng], 13);
+}
+
+/* Table */
+function renderPage(){
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    const start = page * pageSize;
+    const end = start + pageSize;
+
+    records.slice(start,end).forEach(([time,item])=>{
+        const status = getStatus(item.temperature);
+        const gpsText = (!item.gps || !item.gps.lat || !item.gps.lng)
+            ? "Not found"
+            : `${item.gps.lat}, ${item.gps.lng}`;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${time}</td>
+            <td>${item.temperature} °C</td>
+            <td>${item.humidity} %</td>
+            <td>${gpsText}</td>
+            <td class="${status.cls}">${status.text}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/* Pagination */
+window.nextPage = ()=>{ page++; renderPage(); };
+window.prevPage = ()=>{ if(page>0) page--; renderPage(); };
+
+/* Logout */
+window.logout = ()=>{
+    localStorage.removeItem("role");
+    window.location.href = "login.html";
+};
+
+loadRecords();
+</script>
+</body>
+</html>
