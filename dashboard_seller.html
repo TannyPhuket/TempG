@@ -46,7 +46,6 @@ header{
   padding:28px;
 }
 
-/* ===== Section ===== */
 .section{
   background:var(--card);
   border:1px solid var(--border);
@@ -56,22 +55,13 @@ header{
   margin-bottom:28px;
 }
 
-.section-header{
-  margin-bottom:20px;
-}
-
 .section-title{
   font-size:18px;
   font-weight:800;
   color:var(--primary);
+  margin-bottom:14px;
 }
 
-.section-sub{
-  font-size:13px;
-  color:var(--muted);
-}
-
-/* ===== Controls ===== */
 input{
   padding:10px 12px;
   border-radius:10px;
@@ -89,7 +79,6 @@ button{
   cursor:pointer;
 }
 
-/* ===== Cards ===== */
 .cards{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
@@ -97,7 +86,7 @@ button{
 }
 
 .card{
-  background:linear-gradient(180deg,#fff,#f9fbfd);
+  background:#fff;
   border:1px solid var(--border);
   border-radius:18px;
   padding:26px;
@@ -107,7 +96,6 @@ button{
 .card-title{
   font-size:14px;
   color:var(--muted);
-  margin-bottom:6px;
 }
 
 .card-value{
@@ -115,9 +103,7 @@ button{
   font-weight:800;
 }
 
-/* ===== Status Badge ===== */
 .badge{
-  display:inline-block;
   padding:10px 18px;
   border-radius:999px;
   font-weight:700;
@@ -128,12 +114,10 @@ button{
 .badge.high{background:var(--danger)}
 .badge.low{background:var(--warning)}
 
-/* ===== Map ===== */
 #map{
   height:340px;
   border-radius:16px;
   border:1px solid var(--border);
-  overflow:hidden;
   position:relative;
 }
 
@@ -150,7 +134,6 @@ button{
   z-index:999;
 }
 
-/* ===== Table ===== */
 table{
   width:100%;
   border-collapse:separate;
@@ -164,17 +147,12 @@ th{
   background:#f1f4f8;
   padding:14px;
   font-size:13px;
-  text-transform:uppercase;
-  color:#5f6c7b;
 }
 
 td{
   padding:14px;
   border-top:1px solid var(--border);
-}
-
-tr:hover td{
-  background:#f9fbfd;
+  text-align:center;
 }
 
 .pagination{
@@ -197,10 +175,7 @@ tr:hover td{
 
 <!-- Settings -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Temperature Alert Setting</div>
-    <div class="section-sub">Define safe temperature range</div>
-  </div>
+  <div class="section-title">Temperature Alert Setting</div>
   Min <input type="number" id="minTemp">
   Max <input type="number" id="maxTemp">
   <button onclick="saveAlert()">Save</button>
@@ -208,9 +183,7 @@ tr:hover td{
 
 <!-- Cards -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Realtime Status</div>
-  </div>
+  <div class="section-title">Realtime Status</div>
   <div class="cards">
     <div class="card">
       <div class="card-title">Temperature</div>
@@ -229,10 +202,7 @@ tr:hover td{
 
 <!-- Map -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Realtime Location</div>
-    <div class="section-sub">Last known GPS position</div>
-  </div>
+  <div class="section-title">Realtime Location</div>
   <div id="map">
     <div id="gpsLost">GPS Not Found</div>
   </div>
@@ -240,9 +210,7 @@ tr:hover td{
 
 <!-- Table -->
 <div class="section">
-  <div class="section-header">
-    <div class="section-title">Temperature Records</div>
-  </div>
+  <div class="section-title">Temperature Records</div>
   <table>
     <thead>
       <tr>
@@ -270,64 +238,85 @@ tr:hover td{
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
+/* ===== Firebase ===== */
 const firebaseConfig = {
   apiKey:"AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
   databaseURL:"https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 initializeApp(firebaseConfig);
-const db=getDatabase();
+const db = getDatabase();
 
-if(localStorage.getItem("role")!=="Seller") location.href="index.html";
+/* ===== Role Guard ===== */
+if(localStorage.getItem("role")!=="Seller"){
+  location.href="index.html";
+}
 
-let map,marker,lastValid=null;
-let records=[],page=0,pageSize=10;
+/* ===== Variables ===== */
+let map, marker, lastValid=null;
+let records=[], page=0;
+const pageSize=10;
 
+/* ===== Map ===== */
 function initMap(){
   if(map) return;
-  map=L.map("map").setView([13.7,100.5],13);
+  map = L.map("map").setView([13.7,100.5],6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 }
 
+/* ===== Update Map ===== */
 function updateMap(r){
   initMap();
-  const lat=Number(r?.gps?.lat);
-  const lng=Number(r?.gps?.lng);
-  const valid=!isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0);
+  const lat = Number(r?.gps?.lat);
+  const lng = Number(r?.gps?.lng);
+  const valid = !isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0);
 
   if(valid){
     lastValid={lat,lng};
     gpsLost.style.display="none";
-    if(!marker) marker=L.marker([lat,lng]).addTo(map);
-    else marker.setLatLng([lat,lng]);
+    marker ? marker.setLatLng([lat,lng]) : marker=L.marker([lat,lng]).addTo(map);
     map.setView([lat,lng],13);
-  }else if(lastValid){
+  }else{
     gpsLost.style.display="block";
-    marker?.setLatLng([lastValid.lat,lastValid.lng]);
+    if(lastValid && marker){
+      marker.setLatLng([lastValid.lat,lastValid.lng]);
+    }
   }
 }
 
+/* ===== Cards ===== */
 function updateCards(r){
-  const t=Number(r.temperature);
-  cardTemp.textContent=t+" °C";
-  cardHum.textContent=r.humidity+" %";
+  const t = Number(r.temperature);
+  cardTemp.textContent = t+" °C";
+  cardHum.textContent = r.humidity+" %";
 
-  const min=Number(minTemp.value);
-  const max=Number(maxTemp.value);
+  const min = Number(minTemp.value);
+  const max = Number(maxTemp.value);
 
-  let status="Normal",cls="normal";
+  let text="Normal", cls="normal";
   if(!isNaN(min)&&!isNaN(max)){
-    if(t>max){status="High Temperature";cls="high";}
-    else if(t<min){status="Low Temperature";cls="low";}
+    if(t>max){text="High Temperature";cls="high";}
+    else if(t<min){text="Low Temperature";cls="low";}
   }
-  cardStatus.innerHTML=`<span class="badge ${cls}">${status}</span>`;
+  cardStatus.innerHTML=`<span class="badge ${cls}">${text}</span>`;
 }
 
+/* ===== Table ===== */
 function render(){
   tableBody.innerHTML="";
+  const min = Number(minTemp.value);
+  const max = Number(maxTemp.value);
+
   records.slice(page*pageSize,(page+1)*pageSize).forEach(([k,r])=>{
-    const gps=(r.gps?.lat===0&&r.gps?.lng===0)?"Not found":`${r.gps?.lat??"--"}, ${r.gps?.lng??"--"}`;
-    const status=r.temperature>maxTemp.value?"High":r.temperature<minTemp.value?"Low":"Normal";
+    let status="Normal";
+    if(!isNaN(min)&&!isNaN(max)){
+      if(r.temperature>max) status="High";
+      else if(r.temperature<min) status="Low";
+    }
+    const gps = (r.gps?.lat===0&&r.gps?.lng===0)
+      ? "Not found"
+      : `${r.gps?.lat??"--"}, ${r.gps?.lng??"--"}`;
+
     tableBody.innerHTML+=`
       <tr>
         <td>${k}</td>
@@ -339,8 +328,17 @@ function render(){
   });
 }
 
+/* ===== Firebase Listeners ===== */
+onValue(ref(db,"settings"),s=>{
+  const d=s.val();
+  if(d){
+    minTemp.value=d.min ?? "";
+    maxTemp.value=d.max ?? "";
+  }
+});
+
 onValue(ref(db,"records"),s=>{
-  records=Object.entries(s.val()||{}).reverse();
+  records = Object.entries(s.val()||{}).reverse();
   if(records[0]){
     updateCards(records[0][1]);
     updateMap(records[0][1]);
@@ -348,10 +346,19 @@ onValue(ref(db,"records"),s=>{
   render();
 });
 
-window.nextPage=()=>{page++;render();}
-window.prevPage=()=>{if(page>0)page--;render();}
-window.saveAlert=()=>update(ref(db,"settings"),{min:minTemp.value,max:maxTemp.value});
-window.logout=()=>{localStorage.clear();location.href="index.html";}
+/* ===== Controls ===== */
+window.nextPage=()=>{
+  if((page+1)*pageSize < records.length){page++;render();}
+};
+window.prevPage=()=>{if(page>0){page--;render();}};
+window.saveAlert=()=>update(ref(db,"settings"),{
+  min:Number(minTemp.value),
+  max:Number(maxTemp.value)
+});
+window.logout=()=>{
+  localStorage.clear();
+  location.href="index.html";
+};
 </script>
 
 </body>
