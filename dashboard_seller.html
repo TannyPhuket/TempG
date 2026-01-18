@@ -1,27 +1,357 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Seller Dashboard</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Cool Guard | Seller Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<style>
+:root{
+  --primary:#1f3a5f;
+  --bg:#f2f5f9;
+  --card:#ffffff;
+  --border:#e1e7ef;
+  --text:#2c3e50;
+  --muted:#7f8c8d;
+  --success:#27ae60;
+  --warning:#f39c12;
+  --danger:#e74c3c;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Inter,system-ui;
+  background:var(--bg);
+  color:var(--text);
+}
+
+header{
+  background:linear-gradient(135deg,var(--primary),#162b45);
+  color:#fff;
+  padding:18px 30px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.2);
+}
+
+.container{
+  max-width:1280px;
+  margin:auto;
+  padding:28px;
+}
+
+/* ===== Section ===== */
+.section{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:0 10px 26px rgba(0,0,0,.06);
+  padding:24px;
+  margin-bottom:28px;
+}
+
+.section-header{
+  margin-bottom:20px;
+}
+
+.section-title{
+  font-size:18px;
+  font-weight:800;
+  color:var(--primary);
+}
+
+.section-sub{
+  font-size:13px;
+  color:var(--muted);
+}
+
+/* ===== Controls ===== */
+input{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  width:120px;
+}
+
+button{
+  padding:10px 18px;
+  border:none;
+  border-radius:10px;
+  background:var(--primary);
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+
+/* ===== Cards ===== */
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:22px;
+}
+
+.card{
+  background:linear-gradient(180deg,#fff,#f9fbfd);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:26px;
+  text-align:center;
+}
+
+.card-title{
+  font-size:14px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+
+.card-value{
+  font-size:36px;
+  font-weight:800;
+}
+
+/* ===== Status Badge ===== */
+.badge{
+  display:inline-block;
+  padding:10px 18px;
+  border-radius:999px;
+  font-weight:700;
+  color:#fff;
+}
+
+.badge.normal{background:var(--success)}
+.badge.high{background:var(--danger)}
+.badge.low{background:var(--warning)}
+
+/* ===== Map ===== */
+#map{
+  height:340px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  overflow:hidden;
+  position:relative;
+}
+
+#gpsLost{
+  position:absolute;
+  top:14px;
+  right:14px;
+  background:var(--danger);
+  color:#fff;
+  padding:8px 14px;
+  border-radius:10px;
+  font-size:13px;
+  display:none;
+  z-index:999;
+}
+
+/* ===== Table ===== */
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  border-radius:14px;
+  border:1px solid var(--border);
+  overflow:hidden;
+}
+
+th{
+  background:#f1f4f8;
+  padding:14px;
+  font-size:13px;
+  text-transform:uppercase;
+  color:#5f6c7b;
+}
+
+td{
+  padding:14px;
+  border-top:1px solid var(--border);
+}
+
+tr:hover td{
+  background:#f9fbfd;
+}
+
+.pagination{
+  margin-top:20px;
+  display:flex;
+  justify-content:center;
+  gap:14px;
+}
+</style>
 </head>
+
 <body>
 
-<div class="box">
-  <h3>Set Temperature Alert</h3>
-  <input type="number" id="limit" value="5">
-  <button onclick="save()">Save</button>
+<header>
+  <b>Smart Cool Guard – Seller Dashboard</b>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+
+<!-- Settings -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Temperature Alert Setting</div>
+    <div class="section-sub">Define safe temperature range</div>
+  </div>
+  Min <input type="number" id="minTemp">
+  Max <input type="number" id="maxTemp">
+  <button onclick="saveAlert()">Save</button>
 </div>
 
-<script type="module">
-import { db } from "./firebase.js";
-import { ref, set } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+<!-- Cards -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Realtime Status</div>
+  </div>
+  <div class="cards">
+    <div class="card">
+      <div class="card-title">Temperature</div>
+      <div class="card-value" id="cardTemp">-- °C</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Humidity</div>
+      <div class="card-value" id="cardHum">-- %</div>
+    </div>
+    <div class="card">
+      <div class="card-title">System Status</div>
+      <div id="cardStatus"></div>
+    </div>
+  </div>
+</div>
 
-function save(){
-  const limit = document.getElementById("limit").value;
-  set(ref(db,"setting/temp_limit"), Number(limit));
-  alert("Saved");
+<!-- Map -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Realtime Location</div>
+    <div class="section-sub">Last known GPS position</div>
+  </div>
+  <div id="map">
+    <div id="gpsLost">GPS Not Found</div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Temperature Records</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date / Time</th>
+        <th>Temp</th>
+        <th>Humidity</th>
+        <th>GPS</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <div class="pagination">
+    <button onclick="prevPage()">Previous</button>
+    <button onclick="nextPage()">Next</button>
+  </div>
+</div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyBHCnAFJHBz95ugYztMkxBa5b6fwqCZqfo",
+  databaseURL:"https://temperature-cold-guard-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+initializeApp(firebaseConfig);
+const db=getDatabase();
+
+if(localStorage.getItem("role")!=="Seller") location.href="index.html";
+
+let map,marker,lastValid=null;
+let records=[],page=0,pageSize=10;
+
+function initMap(){
+  if(map) return;
+  map=L.map("map").setView([13.7,100.5],13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 }
+
+function updateMap(r){
+  initMap();
+  const lat=Number(r?.gps?.lat);
+  const lng=Number(r?.gps?.lng);
+  const valid=!isNaN(lat)&&!isNaN(lng)&&!(lat===0&&lng===0);
+
+  if(valid){
+    lastValid={lat,lng};
+    gpsLost.style.display="none";
+    if(!marker) marker=L.marker([lat,lng]).addTo(map);
+    else marker.setLatLng([lat,lng]);
+    map.setView([lat,lng],13);
+  }else if(lastValid){
+    gpsLost.style.display="block";
+    marker?.setLatLng([lastValid.lat,lastValid.lng]);
+  }
+}
+
+function updateCards(r){
+  const t=Number(r.temperature);
+  cardTemp.textContent=t+" °C";
+  cardHum.textContent=r.humidity+" %";
+
+  const min=Number(minTemp.value);
+  const max=Number(maxTemp.value);
+
+  let status="Normal",cls="normal";
+  if(!isNaN(min)&&!isNaN(max)){
+    if(t>max){status="High Temperature";cls="high";}
+    else if(t<min){status="Low Temperature";cls="low";}
+  }
+  cardStatus.innerHTML=`<span class="badge ${cls}">${status}</span>`;
+}
+
+function render(){
+  tableBody.innerHTML="";
+  records.slice(page*pageSize,(page+1)*pageSize).forEach(([k,r])=>{
+    const gps=(r.gps?.lat===0&&r.gps?.lng===0)?"Not found":`${r.gps?.lat??"--"}, ${r.gps?.lng??"--"}`;
+    const status=r.temperature>maxTemp.value?"High":r.temperature<minTemp.value?"Low":"Normal";
+    tableBody.innerHTML+=`
+      <tr>
+        <td>${k}</td>
+        <td>${r.temperature}</td>
+        <td>${r.humidity}</td>
+        <td>${gps}</td>
+        <td>${status}</td>
+      </tr>`;
+  });
+}
+
+onValue(ref(db,"records"),s=>{
+  records=Object.entries(s.val()||{}).reverse();
+  if(records[0]){
+    updateCards(records[0][1]);
+    updateMap(records[0][1]);
+  }
+  render();
+});
+
+window.nextPage=()=>{page++;render();}
+window.prevPage=()=>{if(page>0)page--;render();}
+window.saveAlert=()=>update(ref(db,"settings"),{min:minTemp.value,max:maxTemp.value});
+window.logout=()=>{localStorage.clear();location.href="index.html";}
 </script>
 
 </body>
